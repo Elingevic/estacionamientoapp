@@ -136,11 +136,15 @@ export default function Home() {
         },
       ]);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Supabase Error Details:", error);
+        throw error;
+      }
+      
       setStep("success");
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      alert("Error guardando en la base de datos.");
+      alert("Error guardando en la BD: " + (error?.message || "Error desconocido"));
     } finally {
       setLoading(false);
     }
