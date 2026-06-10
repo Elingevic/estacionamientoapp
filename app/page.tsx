@@ -6,6 +6,7 @@ import { createClient } from "@supabase/supabase-js";
 import Tesseract from "tesseract.js";
 import { Camera, FileText, Loader2, CheckCircle2, UploadCloud, LogOut, Calendar, Users, Building2, Receipt } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://dummy.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "dummy";
@@ -13,6 +14,7 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 export default function Home() {
   const { data: session, status } = useSession();
+  const router = useRouter();
   
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -37,10 +39,12 @@ export default function Home() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (session?.user?.email) {
+    if (status === "authenticated" && (session?.user as any)?.role === "rrhh") {
+      router.push("/rrhh");
+    } else if (session?.user?.email) {
       fetchMyFacturas();
     }
-  }, [session, startDate, endDate, step]); // Se recarga al cambiar de paso (por ej. al subir una nueva)
+  }, [session, status, router, startDate, endDate, step]); // Se recarga al cambiar de paso (por ej. al subir una nueva)
 
   const fetchMyFacturas = async () => {
     setFetchingFacturas(true);
@@ -278,12 +282,6 @@ export default function Home() {
               <h3 className="text-lg font-bold text-brand-blue flex items-center gap-2">
                 <Receipt className="w-5 h-5"/> Mis Cargas ({myFacturas.length})
               </h3>
-              <button 
-                onClick={() => window.open(`/api/generar-reporte?start=${startDate}&end=${endDate}`, "_blank")}
-                className="text-xs font-bold bg-brand-red text-white px-3 py-2 rounded-xl hover:bg-brand-darkred flex items-center gap-1.5 shadow-md shadow-brand-red/20 transition-all"
-              >
-                <FileText className="w-4 h-4"/> Reporte Word
-              </button>
             </div>
             
             <div className="flex gap-3 mb-5">
