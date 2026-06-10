@@ -24,8 +24,11 @@ export default function Home() {
   const [ocrProgress, setOcrProgress] = useState<string>("");
 
   const [formData, setFormData] = useState({
+    fecha: new Date().toLocaleDateString("en-CA", { timeZone: "America/Caracas" }),
     nro_factura: "",
     monto: "",
+    estacionamiento: "",
+    lugar: ""
   });
 
   const [myFacturas, setMyFacturas] = useState<any[]>([]);
@@ -103,22 +106,25 @@ export default function Home() {
       });
       
       const textClean = result.data.text.replace(/O/g, "0");
+      const lines = textClean.split('\n').map(l => l.trim()).filter(l => l.length > 0);
       const nroFacturaMatch = textClean.match(/FACTURA[\s\S]{0,50}?(\d{5,10})/i);
       const fallbackFacturaMatch = textClean.match(/\b(000\d{4,7})\b/);
       let nro_factura = nroFacturaMatch ? nroFacturaMatch[1] : (fallbackFacturaMatch ? fallbackFacturaMatch[1] : "");
 
-      const montosRegex = /\b\d{1,3}(?:[.,]\d{3})*[.,]\d{2}\b|\b\d+[.,]\d{2}\b/g;
-      let matchMonto; let maxMonto = 0; let montoStr = "";
-
-      while ((matchMonto = montosRegex.exec(textClean)) !== null) {
-        let rawVal = matchMonto[0];
-        let lastSepIndex = Math.max(rawVal.lastIndexOf("."), rawVal.lastIndexOf(","));
-        let valStr = rawVal.substring(0, lastSepIndex).replace(/[.,]/g, "") + "." + rawVal.substring(lastSepIndex + 1);
-        let val = parseFloat(valStr);
-        if (!isNaN(val) && val > maxMonto) { maxMonto = val; montoStr = valStr; }
+      // Buscar Base Imponible en lugar del Total
+      let montoStr = "";
+      const biMatch = textClean.match(/(?:BI|BASE)[^\d]{0,20}?(\d{1,3}(?:[.,]\d{3})*[.,]\d{2})/i);
+      if (biMatch) {
+         montoStr = biMatch[1].replace(/[.,](?=\d{2}$)/, '.').replace(/[.,](?=\d{3})/g, '');
       }
 
-      setFormData({ nro_factura, monto: montoStr });
+      setFormData(prev => ({ 
+        ...prev, 
+        nro_factura, 
+        monto: montoStr,
+        estacionamiento: lines[0] || "",
+        lugar: lines[1] || ""
+      }));
       setStep("review");
     } catch (error) {
       alert("Error procesando imagen. Ingresa los datos manualmente.");
@@ -147,16 +153,27 @@ export default function Home() {
         imageUrl = publicUrl;
       }
 
-      const { error } = await supabase.from("facturas").insert([
-        {
-          fecha: new Date().toISOString().split("T")[0],
-          nro_factura: formData.nro_factura,
-          monto: parseFloat(formData.monto) || 0,
-          user_id: session.user.email,
-          image_url: imageUrl
-        },
-      ]);
-      if (error) throw error;
+      let insertData: any = {
+        fecha: formData.fecha,
+        nro_factura: formData.nro_factura,
+        monto: parseFloat(formData.monto) || 0,
+        user_id: session.user.email,
+        image_url: imageUrl,
+        estacionamiento: formData.estacionamiento,
+        lugar: formData.lugar
+      };
+
+      const { error } = await supabase.from("facturas").insert([insertData]);
+      
+      if (error && error.message.includes("estacionamiento")) {
+        // Fallback si no existen las columnas
+        delete insertData.estacionamiento;
+        delete insertData.lugar;
+        const { error: fallbackError } = await supabase.from("facturas").insert([insertData]);
+        if (fallbackError) throw fallbackError;
+      } else if (error) {
+        throw error;
+      }
       setStep("success");
     } catch (error: any) {
       alert("Error: " + (error?.message || "Desconocido"));
@@ -249,6 +266,18 @@ export default function Home() {
                   <div className="absolute top-3 right-3 bg-brand-blue/90 text-white px-3 py-1.5 rounded-lg text-xs font-semibold backdrop-blur-sm shadow-md">Auditoría RRHH</div>
                 </div>
               )}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Fecha de la Factura</label>
+                <input type="date" required value={formData.fecha} onChange={(e) => setFormData({ ...formData, fecha: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20 transition-all text-lg text-slate-800" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Nombre del Estacionamiento</label>
+                <input type="text" value={formData.estacionamiento} onChange={(e) => setFormData({ ...formData, estacionamiento: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 outline-none focus:border-brand-blue transition-all font-medium text-lg text-slate-800" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Lugar</label>
+                <input type="text" value={formData.lugar} onChange={(e) => setFormData({ ...formData, lugar: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 outline-none focus:border-brand-blue transition-all font-medium text-lg text-slate-800" />
+              </div>
               <div className="space-y-2">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Nro. de Factura</label>
                 <input type="text" required value={formData.nro_factura} onChange={(e) => setFormData({ ...formData, nro_factura: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20 transition-all font-mono text-lg text-slate-800" />

@@ -63,9 +63,9 @@ export async function GET(request: Request) {
         fecha: new Date(f.fecha).toLocaleDateString("es-ES", { timeZone: "America/Caracas" }),
         // Añadimos datos más cortos para que la tabla en Word no se desborde
         empleado: f.user_id,
-        nombre_estacionamiento: "SudeParking",
-        estacionamiento: "SudeParking",
-        lugar: "Sede Principal"
+        nombre_estacionamiento: f.estacionamiento || "No especificado",
+        estacionamiento: f.estacionamiento || "No especificado",
+        lugar: f.lugar || "No especificado"
       };
     }) || [];
 
