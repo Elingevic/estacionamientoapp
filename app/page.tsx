@@ -183,7 +183,7 @@ export default function Home() {
   };
 
   const resetFlow = () => {
-    setFile(null); setPreview(null); setCompressedBlob(null); setFormData({ nro_factura: "", monto: "" }); setStep("capture");
+    setFile(null); setPreview(null); setCompressedBlob(null); setFormData({ fecha: new Date().toLocaleDateString("en-CA", { timeZone: "America/Caracas" }), nro_factura: "", monto: "", estacionamiento: "", lugar: "" }); setStep("capture");
   };
 
   const isRrhh = session?.user?.email?.toLowerCase().includes("rrhh") || (session?.user as any)?.role === "rrhh";
