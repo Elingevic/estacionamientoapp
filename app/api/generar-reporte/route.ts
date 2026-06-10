@@ -6,15 +6,54 @@ import PizZip from "pizzip";
 import Docxtemplater from "docxtemplater";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://dummy.supabase.co";
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "dummy";
-const supabase = createClient(supabaseUrl, supabaseKey);
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "dummy";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    // Obtener facturas
+    const authHeader = request.headers.get("Authorization");
+    if (!authHeader) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    
+    // Crear cliente de supabase pasando el token del usuario
+    const supabase = createClient(supabaseUrl, supabaseKey, {
+      global: {
+        headers: { Authorization: `Bearer ${token}` }
+      }
+    });
+
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      return NextResponse.json({ error: "Sesión inválida" }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const start = searchParams.get("start");
+    const end = searchParams.get("end");
+
+    if (!start || !end) {
+      return NextResponse.json({ error: "Faltan fechas start y end" }, { status: 400 });
+    }
+
+    // Obtener perfil del usuario
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", user.id)
+      .single();
+
+    if (!profile) {
+      return NextResponse.json({ error: "Perfil no encontrado" }, { status: 404 });
+    }
+
+    // Obtener facturas filtradas por fecha (y que pertenezcan al usuario gracias al RLS)
     const { data: facturas, error } = await supabase
       .from("facturas")
       .select("*")
+      .gte("fecha", start)
+      .lte("fecha", end)
       .order("fecha", { ascending: true });
 
     if (error) throw error;
@@ -31,7 +70,6 @@ export async function GET() {
         ...f,
         monto: `Bs.S ${numberFormat.format(Number(f.monto))}`,
         fecha: new Date(f.fecha).toLocaleDateString("es-ES"),
-        // nombre_estacionamiento y lugar ya vienen de Supabase
       };
     }) || [];
 
@@ -49,14 +87,14 @@ export async function GET() {
       linebreaks: true,
     });
 
-    // Inyectamos las variables que irán en el template Word
+    // Inyectamos las variables dinámicas del usuario y sus facturas
     doc.render({
       facturas: facturasFormat,
       total_monto: `Bs.S ${numberFormat.format(total_monto)}`,
       fecha_generacion: new Date().toLocaleDateString("es-ES"),
-      nombres: "Victor Castorani",
-      cedula: "29.596.795",
-      cargo: "Desarrollador I"
+      nombres: profile.nombres,
+      cedula: profile.cedula,
+      cargo: profile.cargo
     });
 
     const buf = doc.getZip().generate({
