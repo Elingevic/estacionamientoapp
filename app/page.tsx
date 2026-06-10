@@ -16,6 +16,7 @@ export default function Home() {
   const [step, setStep] = useState<"capture" | "review" | "success">("capture");
   const [reportLoading, setReportLoading] = useState(false);
   const [ocrProgress, setOcrProgress] = useState<string>("");
+  const [rawOcrText, setRawOcrText] = useState<string>("");
 
   const [formData, setFormData] = useState({
     nro_factura: "",
@@ -50,31 +51,33 @@ export default function Home() {
       
       const text = result.data.text;
       console.log("Texto extraído:", text);
+      setRawOcrText(text);
 
       // 1. Extraer Nro Factura:
-      // Buscamos la palabra FACTURA y capturamos el primer número de 5 a 10 dígitos que aparezca cerca (hasta 50 caracteres después)
-      const nroFacturaMatch = text.match(/FACTURA[\s\S]{0,50}?(\d{5,10})/i);
-      
-      // Si no funciona, intentamos buscar cualquier número que empiece con "000" y tenga 6-10 dígitos
-      const fallbackFacturaMatch = text.match(/\b(000\d{4,7})\b/);
-
+      // A veces Tesseract confunde el 0 con la O, o agrega espacios.
+      // Buscamos cualquier bloque de 5 a 10 dígitos (o letras O que parecen 0)
+      const textClean = text.replace(/O/g, "0");
+      const nroFacturaMatch = textClean.match(/FACTURA[\s\S]{0,50}?(\d{5,10})/i);
+      const fallbackFacturaMatch = textClean.match(/\b(000\d{4,7})\b/);
       let nro_factura = nroFacturaMatch ? nroFacturaMatch[1] : (fallbackFacturaMatch ? fallbackFacturaMatch[1] : "");
 
       // 2. Extraer Monto Total:
-      // Buscamos TODOS los montos con formato venezolano: "1.589,50" o "219,24" o "1589,50"
-      const montosRegex = /\b\d{1,3}(?:\.\d{3})*,\d{2}\b|\b\d+,\d{2}\b/g;
+      // Aceptamos comas o puntos indistintamente como separador decimal para evitar fallos de lectura
+      const montosRegex = /\b\d{1,3}(?:[.,]\d{3})*[.,]\d{2}\b|\b\d+[.,]\d{2}\b/g;
       let matchMonto;
       let maxMonto = 0;
       let montoStr = "";
 
-      while ((matchMonto = montosRegex.exec(text)) !== null) {
-        // Convertimos "1.589,50" a float "1589.50"
-        let valStr = matchMonto[0].replace(/\./g, "").replace(",", ".");
+      while ((matchMonto = montosRegex.exec(textClean)) !== null) {
+        // Normalizamos: quitamos todos los puntos/comas menos el último
+        let rawVal = matchMonto[0];
+        let lastSepIndex = Math.max(rawVal.lastIndexOf("."), rawVal.lastIndexOf(","));
+        let valStr = rawVal.substring(0, lastSepIndex).replace(/[.,]/g, "") + "." + rawVal.substring(lastSepIndex + 1);
+        
         let val = parseFloat(valStr);
-        // Nos quedamos con el monto mayor encontrado, que por lógica siempre es el Total
         if (!isNaN(val) && val > maxMonto) {
           maxMonto = val;
-          montoStr = valStr; // guardamos el string formateado correcto
+          montoStr = valStr;
         }
       }
 
@@ -246,6 +249,16 @@ export default function Home() {
                   {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Guardar"}
                 </button>
               </div>
+
+              {/* Botón para ver el texto detectado (Debug) */}
+              {rawOcrText && (
+                <div className="mt-6 text-left">
+                  <p className="text-xs text-slate-400 mb-1">Texto detectado por la IA (Modo Debug):</p>
+                  <div className="w-full h-32 p-2 bg-slate-800 text-xs font-mono text-slate-300 rounded overflow-y-auto whitespace-pre-wrap border border-slate-700">
+                    {rawOcrText}
+                  </div>
+                </div>
+              )}
             </form>
           )}
 
