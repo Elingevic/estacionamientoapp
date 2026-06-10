@@ -4,8 +4,8 @@ import { useState, useRef } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { Camera, FileText, Loader2, CheckCircle2, UploadCloud } from "lucide-react";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://dummy.supabase.co";
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "dummy";
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 export default function Home() {
