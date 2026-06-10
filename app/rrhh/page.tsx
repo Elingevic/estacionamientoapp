@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSession } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 import { createClient } from "@supabase/supabase-js";
-import { Download, Calendar, Search, ExternalLink, Activity, DollarSign, Receipt, AlertCircle, X, ShieldAlert, Loader2, Building2, FileText } from "lucide-react";
+import { Download, Calendar, Search, ExternalLink, Activity, DollarSign, Receipt, AlertCircle, X, ShieldAlert, Loader2, Building2, FileText, LogOut } from "lucide-react";
 import Link from "next/link";
 import * as XLSX from "xlsx";
 
@@ -107,16 +107,8 @@ export default function RrhhDashboard() {
           </div>
         </div>
         <div className="flex gap-4 w-full md:w-auto">
-          <Link href="/" className="flex-1 md:flex-none text-center px-6 py-3 rounded-xl border-2 border-slate-200 text-slate-600 font-bold hover:bg-slate-50 transition-all">
-            Volver a App
-          </Link>
-          <button 
-            onClick={() => {
-              window.open(`/api/generar-reporte?start=${startDate}&end=${endDate}${searchTerm ? `&email=${encodeURIComponent(searchTerm)}` : ''}`, "_blank");
-            }}
-            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-brand-blue hover:bg-[#1f2a54] text-white font-bold shadow-lg shadow-brand-blue/30 transition-all"
-          >
-            <FileText className="w-5 h-5" /> Documento Word
+          <button onClick={() => signOut()} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-xl border-2 border-slate-200 text-slate-600 font-bold hover:bg-slate-50 transition-all">
+            <LogOut className="w-5 h-5" /> Cerrar Sesión
           </button>
           <button onClick={exportToExcel} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-lg shadow-emerald-600/30 transition-all">
             <Download className="w-5 h-5" /> Exportar Nómina

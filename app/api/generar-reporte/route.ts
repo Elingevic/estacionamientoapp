@@ -59,10 +59,13 @@ export async function GET(request: Request) {
       total_monto += Number(f.monto);
       return {
         ...f,
-        monto: `Bs.S ${numberFormat.format(Number(f.monto))}`,
+        monto: `Bs. ${numberFormat.format(Number(f.monto))}`,
         fecha: new Date(f.fecha).toLocaleDateString("es-ES"),
-        // Añadimos el correo a la vista del documento si es un reporte consolidado
-        empleado: f.user_id 
+        // Añadimos datos más cortos para que la tabla en Word no se desborde
+        empleado: f.user_id,
+        nombre_estacionamiento: "SudeParking",
+        estacionamiento: "SudeParking",
+        lugar: "Sede Principal"
       };
     }) || [];
 
@@ -83,7 +86,7 @@ export async function GET(request: Request) {
     // Inyectamos las variables dinámicas
     doc.render({
       facturas: facturasFormat,
-      total_monto: `Bs.S ${numberFormat.format(total_monto)}`,
+      total_monto: `Bs. ${numberFormat.format(total_monto)}`,
       fecha_generacion: new Date().toLocaleDateString("es-ES"),
       // Si es RRHH generando el reporte global, ponemos RRHH. Si no, el nombre del empleado.
       nombres: isRrhh ? (emailFilter || "Consolidado RRHH") : session.user.name || session.user.email,
