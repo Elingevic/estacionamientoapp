@@ -111,19 +111,42 @@ export default function Home() {
       const fallbackFacturaMatch = textClean.match(/\b(000\d{4,7})\b/);
       let nro_factura = nroFacturaMatch ? nroFacturaMatch[1] : (fallbackFacturaMatch ? fallbackFacturaMatch[1] : "");
 
-      // Buscar Base Imponible en lugar del Total
+      // Extraer Estacionamiento y Lugar (usualmente después del RIF)
+      let estacionamiento = "";
+      let lugar = "";
+      const rifIndex = lines.findIndex(l => l.toUpperCase().includes("RIF"));
+      if (rifIndex !== -1 && lines.length > rifIndex + 2) {
+         estacionamiento = lines[rifIndex + 1];
+         lugar = lines[rifIndex + 2];
+      } else {
+         const skipSeniat = lines.filter(l => !l.toUpperCase().includes("SENIAT") && !l.toUpperCase().includes("RIF"));
+         estacionamiento = skipSeniat[0] || "";
+         lugar = skipSeniat[1] || "";
+      }
+
+      // Buscar Total (la palabra TOTAL o usar el monto más alto como fallback)
       let montoStr = "";
-      const biMatch = textClean.match(/(?:BI|BASE)[^\d]{0,20}?(\d{1,3}(?:[.,]\d{3})*[.,]\d{2})/i);
-      if (biMatch) {
-         montoStr = biMatch[1].replace(/[.,](?=\d{2}$)/, '.').replace(/[.,](?=\d{3})/g, '');
+      const totalMatch = textClean.match(/TOTAL[^\d]{0,20}?(\d{1,3}(?:[.,]\d{3})*[.,]\d{2})/i);
+      if (totalMatch) {
+         montoStr = totalMatch[1].replace(/[.,](?=\d{2}$)/, '.').replace(/[.,](?=\d{3})/g, '');
+      } else {
+         const montosRegex = /\b\d{1,3}(?:[.,]\d{3})*[.,]\d{2}\b|\b\d+[.,]\d{2}\b/g;
+         let matchMonto; let maxMonto = 0;
+         while ((matchMonto = montosRegex.exec(textClean)) !== null) {
+           let rawVal = matchMonto[0];
+           let lastSepIndex = Math.max(rawVal.lastIndexOf("."), rawVal.lastIndexOf(","));
+           let valStr = rawVal.substring(0, lastSepIndex).replace(/[.,]/g, "") + "." + rawVal.substring(lastSepIndex + 1);
+           let val = parseFloat(valStr);
+           if (!isNaN(val) && val > maxMonto) { maxMonto = val; montoStr = valStr; }
+         }
       }
 
       setFormData(prev => ({ 
         ...prev, 
         nro_factura, 
         monto: montoStr,
-        estacionamiento: lines[0] || "",
-        lugar: lines[1] || ""
+        estacionamiento: estacionamiento,
+        lugar: lugar
       }));
       setStep("review");
     } catch (error) {
