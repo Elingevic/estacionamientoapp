@@ -174,7 +174,7 @@ export default function Home() {
         <header className="flex justify-between items-center bg-slate-800/50 p-4 rounded-2xl border border-slate-700/50">
           <div>
             <h1 className="text-xl font-bold text-blue-400">SmartParking</h1>
-            <p className="text-xs text-slate-400 truncate w-40">{session.user.name}</p>
+            <p className="text-xs text-slate-400 truncate w-40">{session?.user?.name || session?.user?.email}</p>
           </div>
           <div className="flex gap-2">
             {isRrhh && (

@@ -1,6 +1,8 @@
 -- 1. ADAPTAR LA BASE DE DATOS PARA NEXTAUTH (SSO)
--- Como el Login Único de la empresa maneja a los usuarios, ya no usamos el auth.users de Supabase.
--- Por lo tanto, rompemos la relación y cambiamos el tipo de dato para que acepte cualquier ID o Correo del SSO.
+-- Desactivamos la seguridad de fila (RLS) porque ahora NextAuth protege las rutas web.
+-- Y eliminamos la política vieja que usaba el uuid de Supabase.
+DROP POLICY IF EXISTS "Los usuarios solo ven sus facturas" ON public.facturas;
+ALTER TABLE public.facturas DISABLE ROW LEVEL SECURITY;
 
 ALTER TABLE public.facturas DROP CONSTRAINT IF EXISTS facturas_user_id_fkey;
 ALTER TABLE public.facturas ALTER COLUMN user_id TYPE TEXT;
