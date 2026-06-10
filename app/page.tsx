@@ -51,21 +51,36 @@ export default function Home() {
       const text = result.data.text;
       console.log("Texto extraído:", text);
 
-      // Regex ajustado al ticket real
-      const nroFacturaMatch = text.match(/FACTURA:\s*(\d{4,10})/i);
-      const montoMatch = text.match(/TOTAL[\s\S]*?(?:Bs|Bs\.|Bs\.S)\s*([\d.,]+)/i);
-
-      let nro_factura = nroFacturaMatch ? nroFacturaMatch[1] : "";
-      let monto = "";
+      // 1. Extraer Nro Factura:
+      // Buscamos la palabra FACTURA y capturamos el primer número de 5 a 10 dígitos que aparezca cerca (hasta 50 caracteres después)
+      const nroFacturaMatch = text.match(/FACTURA[\s\S]{0,50}?(\d{5,10})/i);
       
-      if (montoMatch) {
-        // El ticket tiene "1.589,50". Convertimos a float válido en JS: "1589.50"
-        monto = montoMatch[1].replace(/\./g, "").replace(",", ".");
+      // Si no funciona, intentamos buscar cualquier número que empiece con "000" y tenga 6-10 dígitos
+      const fallbackFacturaMatch = text.match(/\b(000\d{4,7})\b/);
+
+      let nro_factura = nroFacturaMatch ? nroFacturaMatch[1] : (fallbackFacturaMatch ? fallbackFacturaMatch[1] : "");
+
+      // 2. Extraer Monto Total:
+      // Buscamos TODOS los montos con formato venezolano: "1.589,50" o "219,24" o "1589,50"
+      const montosRegex = /\b\d{1,3}(?:\.\d{3})*,\d{2}\b|\b\d+,\d{2}\b/g;
+      let matchMonto;
+      let maxMonto = 0;
+      let montoStr = "";
+
+      while ((matchMonto = montosRegex.exec(text)) !== null) {
+        // Convertimos "1.589,50" a float "1589.50"
+        let valStr = matchMonto[0].replace(/\./g, "").replace(",", ".");
+        let val = parseFloat(valStr);
+        // Nos quedamos con el monto mayor encontrado, que por lógica siempre es el Total
+        if (!isNaN(val) && val > maxMonto) {
+          maxMonto = val;
+          montoStr = valStr; // guardamos el string formateado correcto
+        }
       }
 
       setFormData({
         nro_factura,
-        monto,
+        monto: montoStr,
       });
       setStep("review");
     } catch (error) {
