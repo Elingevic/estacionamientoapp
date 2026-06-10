@@ -169,8 +169,15 @@ export default function Home() {
     setFile(null); setPreview(null); setCompressedBlob(null); setFormData({ nro_factura: "", monto: "" }); setStep("capture");
   };
 
-  if (status === "loading") {
-    return <div className="min-h-screen bg-brand-blue flex items-center justify-center text-white"><Loader2 className="w-8 h-8 animate-spin" /></div>;
+  const isRrhh = session?.user?.email?.toLowerCase().includes("rrhh") || (session?.user as any)?.role === "rrhh";
+
+  if (status === "loading" || (status === "authenticated" && isRrhh)) {
+    return (
+      <div className="min-h-screen bg-brand-blue flex flex-col items-center justify-center text-white">
+        <Loader2 className="w-10 h-10 animate-spin mb-4" />
+        {isRrhh && <p className="font-medium animate-pulse text-blue-200">Ingresando a Panel de Recursos Humanos...</p>}
+      </div>
+    );
   }
 
   if (!session) {
@@ -194,7 +201,6 @@ export default function Home() {
     );
   }
 
-  const isRrhh = (session.user as any).role === "rrhh";
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-800 p-4 font-sans">

@@ -216,7 +216,7 @@ export default function RrhhDashboard() {
                       <td className="px-6 py-4 font-bold text-slate-800">{f.user_id}</td>
                       <td className="px-6 py-4 font-mono font-medium text-slate-500">{f.nro_factura}</td>
                       <td className="px-6 py-4 text-right font-bold text-emerald-600">Bs. {Number(f.monto).toFixed(2)}</td>
-                      <td className="px-6 py-4 text-center">
+                      <td className="px-6 py-4 flex items-center justify-center gap-2">
                         {f.image_url ? (
                           <button 
                             onClick={() => setSelectedImage(f.image_url)}
@@ -227,6 +227,12 @@ export default function RrhhDashboard() {
                         ) : (
                           <span className="text-xs text-slate-400 font-medium italic">Sin evidencia</span>
                         )}
+                        <button 
+                          onClick={() => window.open(`/api/generar-reporte?start=${startDate}&end=${endDate}&email=${encodeURIComponent(f.user_id)}`, "_blank")}
+                          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-brand-red text-white hover:bg-brand-darkred shadow-md transition-colors font-bold text-xs"
+                        >
+                          <FileText className="w-4 h-4" /> Word
+                        </button>
                       </td>
                     </tr>
                   ))}
