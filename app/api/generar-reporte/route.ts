@@ -60,7 +60,7 @@ export async function GET(request: Request) {
       return {
         ...f,
         monto: `Bs. ${numberFormat.format(Number(f.monto))}`,
-        fecha: new Date(f.fecha).toLocaleDateString("es-ES"),
+        fecha: new Date(f.fecha).toLocaleDateString("es-ES", { timeZone: "America/Caracas" }),
         // Añadimos datos más cortos para que la tabla en Word no se desborde
         empleado: f.user_id,
         nombre_estacionamiento: "SudeParking",
@@ -87,7 +87,7 @@ export async function GET(request: Request) {
     doc.render({
       facturas: facturasFormat,
       total_monto: `Bs. ${numberFormat.format(total_monto)}`,
-      fecha_generacion: new Date().toLocaleDateString("es-ES"),
+      fecha_generacion: new Date().toLocaleDateString("es-ES", { timeZone: "America/Caracas" }),
       // Si es RRHH generando el reporte global, ponemos RRHH. Si no, el nombre del empleado.
       nombres: isRrhh ? (emailFilter || "Consolidado RRHH") : session.user.name || session.user.email,
       cedula: "N/A (SSO)",
