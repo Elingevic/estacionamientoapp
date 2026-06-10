@@ -65,7 +65,7 @@ export default function RrhhDashboard() {
   const listaEmpleados = Object.keys(facturasPorEmpleado).map(email => ({
     email,
     facturas: facturasPorEmpleado[email],
-    totalMonto: facturasPorEmpleado[email].reduce((sum, f) => sum + Number(f.monto), 0),
+    totalMonto: facturasPorEmpleado[email].reduce((sum: number, f: any) => sum + Number(f.monto), 0),
     totalTickets: facturasPorEmpleado[email].length
   }));
 
