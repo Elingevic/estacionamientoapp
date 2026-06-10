@@ -4,57 +4,48 @@ import fs from "fs";
 import path from "path";
 import PizZip from "pizzip";
 import Docxtemplater from "docxtemplater";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "../auth/[...nextauth]/route";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://dummy.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "dummy";
 
 export async function GET(request: Request) {
   try {
-    const authHeader = request.headers.get("Authorization");
-    if (!authHeader) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    const session = await getServerSession(authOptions);
+    if (!session || !session.user) {
+      return NextResponse.json({ error: "No autorizado. Inicia sesión." }, { status: 401 });
     }
 
-    const token = authHeader.replace("Bearer ", "");
-    
-    // Crear cliente de supabase pasando el token del usuario
-    const supabase = createClient(supabaseUrl, supabaseKey, {
-      global: {
-        headers: { Authorization: `Bearer ${token}` }
-      }
-    });
-
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      return NextResponse.json({ error: "Sesión inválida" }, { status: 401 });
-    }
+    const supabase = createClient(supabaseUrl, supabaseKey);
 
     const { searchParams } = new URL(request.url);
     const start = searchParams.get("start");
     const end = searchParams.get("end");
+    const emailFilter = searchParams.get("email");
 
     if (!start || !end) {
       return NextResponse.json({ error: "Faltan fechas start y end" }, { status: 400 });
     }
 
-    // Obtener perfil del usuario
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", user.id)
-      .single();
+    const isRrhh = (session.user as any).role === "rrhh";
 
-    if (!profile) {
-      return NextResponse.json({ error: "Perfil no encontrado" }, { status: 404 });
-    }
-
-    // Obtener facturas filtradas por fecha (y que pertenezcan al usuario gracias al RLS)
-    const { data: facturas, error } = await supabase
+    let query = supabase
       .from("facturas")
       .select("*")
       .gte("fecha", start)
       .lte("fecha", end)
       .order("fecha", { ascending: true });
+
+    // Si no es RRHH, solo puede ver sus propias facturas
+    if (!isRrhh) {
+      query = query.eq("user_id", session.user.email);
+    } else if (emailFilter) {
+      // Si es RRHH y buscó un correo específico, filtramos por ese correo
+      query = query.ilike("user_id", `%${emailFilter}%`);
+    }
+
+    const { data: facturas, error } = await query;
 
     if (error) throw error;
 
@@ -70,6 +61,8 @@ export async function GET(request: Request) {
         ...f,
         monto: `Bs.S ${numberFormat.format(Number(f.monto))}`,
         fecha: new Date(f.fecha).toLocaleDateString("es-ES"),
+        // Añadimos el correo a la vista del documento si es un reporte consolidado
+        empleado: f.user_id 
       };
     }) || [];
 
@@ -87,14 +80,15 @@ export async function GET(request: Request) {
       linebreaks: true,
     });
 
-    // Inyectamos las variables dinámicas del usuario y sus facturas
+    // Inyectamos las variables dinámicas
     doc.render({
       facturas: facturasFormat,
       total_monto: `Bs.S ${numberFormat.format(total_monto)}`,
       fecha_generacion: new Date().toLocaleDateString("es-ES"),
-      nombres: profile.nombres,
-      cedula: profile.cedula,
-      cargo: profile.cargo
+      // Si es RRHH generando el reporte global, ponemos RRHH. Si no, el nombre del empleado.
+      nombres: isRrhh ? (emailFilter || "Consolidado RRHH") : session.user.name || session.user.email,
+      cedula: "N/A (SSO)",
+      cargo: isRrhh ? "Departamento de Recursos Humanos" : "Empleado"
     });
 
     const buf = doc.getZip().generate({
@@ -106,7 +100,7 @@ export async function GET(request: Request) {
       status: 200,
       headers: {
         "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        "Content-Disposition": `attachment; filename="Reporte_Semanal_${new Date().toISOString().split("T")[0]}.docx"`,
+        "Content-Disposition": `attachment; filename="Reporte_${isRrhh ? 'RRHH' : 'Empleado'}_${new Date().toISOString().split("T")[0]}.docx"`,
       },
     });
 
