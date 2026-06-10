@@ -36,10 +36,38 @@ export default function Home() {
 
   const processImage = async (imageFile: File) => {
     setLoading(true);
-    setOcrProgress("Iniciando motor OCR...");
+    setOcrProgress("Preparando imagen...");
     try {
-      // Ejecutamos Tesseract directamente en el navegador para evitar el Timeout de Vercel
-      const result = await Tesseract.recognize(imageFile, "spa", {
+      // 0. Preprocesar imagen (Corregir EXIF de celulares y reducir tamaño)
+      const imgUrl = URL.createObjectURL(imageFile);
+      const img = new Image();
+      img.src = imgUrl;
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+      });
+
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+      
+      const MAX_SIZE = 1500;
+      let width = img.width;
+      let height = img.height;
+      
+      if (width > height && width > MAX_SIZE) {
+        height = Math.round((height * MAX_SIZE) / width);
+        width = MAX_SIZE;
+      } else if (height > MAX_SIZE) {
+        width = Math.round((width * MAX_SIZE) / height);
+        height = MAX_SIZE;
+      }
+      
+      canvas.width = width;
+      canvas.height = height;
+      ctx?.drawImage(img, 0, 0, width, height);
+
+      // Pasamos el Canvas (con la rotación corregida y tamaño óptimo) a Tesseract
+      const result = await Tesseract.recognize(canvas, "spa", {
         logger: (m) => {
           if (m.status === "recognizing text") {
             setOcrProgress(`Analizando... ${Math.round(m.progress * 100)}%`);
