@@ -2,6 +2,7 @@
 
 import { useState, useRef } from "react";
 import { createClient } from "@supabase/supabase-js";
+import Tesseract from "tesseract.js";
 import { Camera, FileText, Loader2, CheckCircle2, UploadCloud } from "lucide-react";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://dummy.supabase.co";
@@ -14,6 +15,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState<"capture" | "review" | "success">("capture");
   const [reportLoading, setReportLoading] = useState(false);
+  const [ocrProgress, setOcrProgress] = useState<string>("");
 
   const [formData, setFormData] = useState({
     nro_factura: "",
@@ -33,29 +35,46 @@ export default function Home() {
 
   const processImage = async (imageFile: File) => {
     setLoading(true);
+    setOcrProgress("Iniciando motor OCR...");
     try {
-      const form = new FormData();
-      form.append("image", imageFile);
-
-      const response = await fetch("/api/ocr", {
-        method: "POST",
-        body: form,
+      // Ejecutamos Tesseract directamente en el navegador para evitar el Timeout de Vercel
+      const result = await Tesseract.recognize(imageFile, "spa", {
+        logger: (m) => {
+          if (m.status === "recognizing text") {
+            setOcrProgress(`Analizando... ${Math.round(m.progress * 100)}%`);
+          } else {
+            setOcrProgress("Cargando IA...");
+          }
+        }
       });
+      
+      const text = result.data.text;
+      console.log("Texto extraído:", text);
 
-      if (!response.ok) throw new Error("Error en OCR");
+      // Regex ajustado al ticket real
+      const nroFacturaMatch = text.match(/FACTURA:\s*(\d{4,10})/i);
+      const montoMatch = text.match(/TOTAL[\s\S]*?(?:Bs|Bs\.|Bs\.S)\s*([\d.,]+)/i);
 
-      const data = await response.json();
+      let nro_factura = nroFacturaMatch ? nroFacturaMatch[1] : "";
+      let monto = "";
+      
+      if (montoMatch) {
+        // El ticket tiene "1.589,50". Convertimos a float válido en JS: "1589.50"
+        monto = montoMatch[1].replace(/\./g, "").replace(",", ".");
+      }
+
       setFormData({
-        nro_factura: data.nro_factura || "",
-        monto: data.monto || "",
+        nro_factura,
+        monto,
       });
       setStep("review");
     } catch (error) {
-      console.error(error);
-      alert("Error procesando la imagen. Por favor, ingresa los datos manuales.");
+      console.error("OCR Error:", error);
+      alert("Error procesando la imagen con IA. Por favor, ingresa los datos manuales.");
       setStep("review");
     } finally {
       setLoading(false);
+      setOcrProgress("");
     }
   };
 
@@ -139,7 +158,7 @@ export default function Home() {
               <div className="text-center">
                 <h3 className="text-lg font-semibold">{loading ? "Analizando factura..." : "Capturar Factura"}</h3>
                 <p className="text-sm text-slate-400 mt-1">
-                  {loading ? "Extrayendo datos con IA" : "Toma una foto de tu ticket"}
+                  {loading ? (ocrProgress || "Extrayendo datos con IA") : "Toma una foto de tu ticket"}
                 </p>
               </div>
               <input
