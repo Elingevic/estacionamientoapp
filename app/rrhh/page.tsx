@@ -65,7 +65,6 @@ export default function RrhhDashboard() {
       "Empleado (SSO)": f.user_id,
       "Nro. Factura": f.nro_factura,
       "Monto": Number(f.monto),
-      "Link a Foto": f.image_url || "Sin foto"
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(dataToExport);
@@ -111,14 +110,6 @@ export default function RrhhDashboard() {
           <Link href="/" className="flex-1 md:flex-none text-center px-6 py-3 rounded-xl border-2 border-slate-200 text-slate-600 font-bold hover:bg-slate-50 transition-all">
             Volver a App
           </Link>
-          <button 
-            onClick={() => {
-              window.open(`/api/generar-reporte?start=${startDate}&end=${endDate}${searchTerm ? `&email=${encodeURIComponent(searchTerm)}` : ''}`, "_blank");
-            }}
-            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-brand-blue hover:bg-[#1f2a54] text-white font-bold shadow-lg shadow-brand-blue/30 transition-all"
-          >
-            <FileText className="w-5 h-5" /> Documento Word
-          </button>
           <button onClick={exportToExcel} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-lg shadow-emerald-600/30 transition-all">
             <Download className="w-5 h-5" /> Exportar Nómina
           </button>
@@ -153,7 +144,7 @@ export default function RrhhDashboard() {
             <div className="space-y-4 relative z-10">
               <div className="bg-black/20 rounded-2xl p-5 border border-white/10 backdrop-blur-sm">
                 <p className="text-sm text-blue-200 flex items-center gap-2 mb-1 font-medium"><DollarSign className="w-4 h-4"/> Deuda Total</p>
-                <p className="text-4xl font-extrabold text-white">${totalMonto.toFixed(2)}</p>
+                <p className="text-4xl font-extrabold text-white">Bs. {totalMonto.toFixed(2)}</p>
               </div>
               
               <div className="grid grid-cols-2 gap-4">
@@ -163,7 +154,7 @@ export default function RrhhDashboard() {
                 </div>
                 <div className="bg-black/20 rounded-2xl p-4 border border-white/10 backdrop-blur-sm">
                   <p className="text-xs text-blue-200 mb-1 font-medium">Promedio</p>
-                  <p className="text-xl font-bold text-white">${promedioTicket.toFixed(2)}</p>
+                  <p className="text-xl font-bold text-white">Bs. {promedioTicket.toFixed(2)}</p>
                 </div>
               </div>
             </div>
@@ -216,7 +207,7 @@ export default function RrhhDashboard() {
                       <td className="px-6 py-4 text-slate-600 font-medium">{new Date(f.fecha).toLocaleDateString("es-ES")}</td>
                       <td className="px-6 py-4 font-bold text-slate-800">{f.user_id}</td>
                       <td className="px-6 py-4 font-mono font-medium text-slate-500">{f.nro_factura}</td>
-                      <td className="px-6 py-4 text-right font-bold text-emerald-600">${Number(f.monto).toFixed(2)}</td>
+                      <td className="px-6 py-4 text-right font-bold text-emerald-600">Bs. {Number(f.monto).toFixed(2)}</td>
                       <td className="px-6 py-4 text-center">
                         {f.image_url ? (
                           <button 

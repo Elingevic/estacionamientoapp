@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useSession, signIn, signOut } from "next-auth/react";
 import { createClient } from "@supabase/supabase-js";
 import Tesseract from "tesseract.js";
-import { Camera, FileText, Loader2, CheckCircle2, UploadCloud, LogOut, Calendar, Users, Building2 } from "lucide-react";
+import { Camera, FileText, Loader2, CheckCircle2, UploadCloud, LogOut, Calendar, Users, Building2, Receipt } from "lucide-react";
 import Link from "next/link";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://dummy.supabase.co";
@@ -26,7 +26,39 @@ export default function Home() {
     monto: "",
   });
 
+  const [myFacturas, setMyFacturas] = useState<any[]>([]);
+  const [fetchingFacturas, setFetchingFacturas] = useState(false);
+
+  const [startDate, setStartDate] = useState(() => {
+    const d = new Date(); d.setDate(d.getDate() - 7); return d.toISOString().split("T")[0];
+  });
+  const [endDate, setEndDate] = useState(() => new Date().toISOString().split("T")[0]);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (session?.user?.email) {
+      fetchMyFacturas();
+    }
+  }, [session, startDate, endDate, step]); // Se recarga al cambiar de paso (por ej. al subir una nueva)
+
+  const fetchMyFacturas = async () => {
+    setFetchingFacturas(true);
+    try {
+      const { data, error } = await supabase
+        .from("facturas")
+        .select("*")
+        .eq("user_id", session!.user!.email)
+        .gte("fecha", startDate)
+        .lte("fecha", endDate)
+        .order("fecha", { ascending: false });
+      if (data) setMyFacturas(data);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setFetchingFacturas(false);
+    }
+  };
 
   const handleCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -214,8 +246,8 @@ export default function Home() {
               <div className="space-y-2">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Monto</label>
                 <div className="relative">
-                  <span className="absolute left-4 top-3.5 font-bold text-slate-400">$</span>
-                  <input type="number" step="0.01" required value={formData.monto} onChange={(e) => setFormData({ ...formData, monto: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-4 py-3.5 outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20 transition-all font-semibold text-lg text-slate-800" />
+                  <span className="absolute left-4 top-3.5 font-bold text-slate-400">Bs.</span>
+                  <input type="number" step="0.01" required value={formData.monto} onChange={(e) => setFormData({ ...formData, monto: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-3.5 outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20 transition-all font-semibold text-lg text-slate-800" />
                 </div>
               </div>
               <div className="pt-4 flex gap-3">
@@ -238,6 +270,59 @@ export default function Home() {
             </div>
           )}
         </div>
+
+        {/* HISTORIAL Y REPORTES DEL EMPLEADO */}
+        {step !== "review" && (
+          <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-xl">
+            <div className="flex justify-between items-center mb-5">
+              <h3 className="text-lg font-bold text-brand-blue flex items-center gap-2">
+                <Receipt className="w-5 h-5"/> Mis Cargas ({myFacturas.length})
+              </h3>
+              <button 
+                onClick={() => window.open(`/api/generar-reporte?start=${startDate}&end=${endDate}`, "_blank")}
+                className="text-xs font-bold bg-brand-red text-white px-3 py-2 rounded-xl hover:bg-brand-darkred flex items-center gap-1.5 shadow-md shadow-brand-red/20 transition-all"
+              >
+                <FileText className="w-4 h-4"/> Reporte Word
+              </button>
+            </div>
+            
+            <div className="flex gap-3 mb-5">
+              <div className="w-1/2">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Desde</label>
+                <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-brand-blue font-medium text-slate-700 transition-all" />
+              </div>
+              <div className="w-1/2">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Hasta</label>
+                <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-brand-blue font-medium text-slate-700 transition-all" />
+              </div>
+            </div>
+            
+            {fetchingFacturas ? (
+              <div className="text-center py-6"><Loader2 className="w-8 h-8 animate-spin text-brand-blue mx-auto"/></div>
+            ) : myFacturas.length === 0 ? (
+              <div className="text-center py-6 px-4 bg-slate-50 rounded-2xl border border-slate-100 border-dashed">
+                <p className="text-sm font-medium text-slate-500">No tienes facturas en estas fechas.</p>
+                <p className="text-xs text-slate-400 mt-1">Sube tu primer ticket para verlo aquí.</p>
+              </div>
+            ) : (
+              <div className="space-y-3 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
+                {myFacturas.map((f, i) => (
+                  <div key={i} className="flex justify-between items-center bg-slate-50 p-4 rounded-2xl border border-slate-100 hover:border-slate-200 transition-colors group">
+                    <div>
+                      <p className="text-xs font-bold text-slate-800">{new Date(f.fecha).toLocaleDateString("es-ES")}</p>
+                      <p className="text-xs text-slate-500 font-mono mt-0.5">#{f.nro_factura}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-bold text-emerald-600">Bs. {Number(f.monto).toFixed(2)}</p>
+                      <span className="text-[10px] font-bold text-brand-blue bg-brand-blue/10 px-2 py-0.5 rounded-full mt-1 inline-block">Procesado</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
       </div>
     </main>
   );
