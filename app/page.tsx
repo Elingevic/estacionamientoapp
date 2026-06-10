@@ -1,91 +1,38 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { createClient, Session } from "@supabase/supabase-js";
+import { useState, useRef } from "react";
+import { useSession, signIn, signOut } from "next-auth/react";
+import { createClient } from "@supabase/supabase-js";
 import Tesseract from "tesseract.js";
-import { Camera, FileText, Loader2, CheckCircle2, UploadCloud, LogOut, Calendar } from "lucide-react";
+import { Camera, FileText, Loader2, CheckCircle2, UploadCloud, LogOut, Calendar, Users } from "lucide-react";
+import Link from "next/link";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://dummy.supabase.co";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "dummy";
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 export default function Home() {
-  const [session, setSession] = useState<Session | null>(null);
-  const [authMode, setAuthMode] = useState<"login" | "register">("login");
-  const [authForm, setAuthForm] = useState({ email: "", password: "", nombres: "", cedula: "", cargo: "" });
-  const [authLoading, setAuthLoading] = useState(false);
-  const [authError, setAuthError] = useState("");
-
+  const { data: session, status } = useSession();
+  
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
+  const [compressedBlob, setCompressedBlob] = useState<Blob | null>(null);
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState<"capture" | "review" | "success">("capture");
   const [reportLoading, setReportLoading] = useState(false);
   const [ocrProgress, setOcrProgress] = useState<string>("");
-  const [rawOcrText, setRawOcrText] = useState<string>("");
 
   const [formData, setFormData] = useState({
     nro_factura: "",
     monto: "",
   });
 
-  // Fechas del reporte (por defecto últimos 7 días)
   const [startDate, setStartDate] = useState(() => {
-    const d = new Date();
-    d.setDate(d.getDate() - 7);
-    return d.toISOString().split("T")[0];
+    const d = new Date(); d.setDate(d.getDate() - 7); return d.toISOString().split("T")[0];
   });
   const [endDate, setEndDate] = useState(() => new Date().toISOString().split("T")[0]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-    });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const handleAuth = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setAuthLoading(true);
-    setAuthError("");
-
-    if (authMode === "register") {
-      const { data, error } = await supabase.auth.signUp({
-        email: authForm.email,
-        password: authForm.password,
-      });
-      if (error) setAuthError(error.message);
-      else {
-        if (data.user) {
-          // Crear perfil
-          const { error: profileError } = await supabase.from("profiles").insert({
-            id: data.user.id,
-            nombres: authForm.nombres,
-            cedula: authForm.cedula,
-            cargo: authForm.cargo,
-          });
-          if (profileError) setAuthError("Error creando perfil: " + profileError.message);
-          else alert("Registro exitoso. ¡Ya puedes registrar facturas!");
-        }
-      }
-    } else {
-      const { error } = await supabase.auth.signInWithPassword({
-        email: authForm.email,
-        password: authForm.password,
-      });
-      if (error) setAuthError(error.message);
-    }
-    setAuthLoading(false);
-  };
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-  };
 
   const handleCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -98,7 +45,7 @@ export default function Home() {
 
   const processImage = async (imageFile: File) => {
     setLoading(true);
-    setOcrProgress("Preparando imagen...");
+    setOcrProgress("Optimizando foto...");
     try {
       const imgUrl = URL.createObjectURL(imageFile);
       const img = new Image();
@@ -107,7 +54,7 @@ export default function Home() {
 
       const canvas = document.createElement("canvas");
       const ctx = canvas.getContext("2d");
-      const MAX_SIZE = 1500;
+      const MAX_SIZE = 1200; // Comprimir para que no pese casi nada
       let width = img.width;
       let height = img.height;
       if (width > height && width > MAX_SIZE) { height = Math.round((height * MAX_SIZE) / width); width = MAX_SIZE; }
@@ -115,17 +62,17 @@ export default function Home() {
       canvas.width = width; canvas.height = height;
       ctx?.drawImage(img, 0, 0, width, height);
 
+      // Guardar versión comprimida para subir luego
+      canvas.toBlob((blob) => { if (blob) setCompressedBlob(blob); }, "image/jpeg", 0.7);
+
       const result = await Tesseract.recognize(canvas, "spa", {
         logger: (m) => {
-          if (m.status === "recognizing text") setOcrProgress(`Analizando... ${Math.round(m.progress * 100)}%`);
-          else setOcrProgress("Cargando IA...");
+          if (m.status === "recognizing text") setOcrProgress(`Analizando IA... ${Math.round(m.progress * 100)}%`);
+          else setOcrProgress("Preparando motor...");
         }
       });
       
-      const text = result.data.text;
-      setRawOcrText(text);
-
-      const textClean = text.replace(/O/g, "0");
+      const textClean = result.data.text.replace(/O/g, "0");
       const nroFacturaMatch = textClean.match(/FACTURA[\s\S]{0,50}?(\d{5,10})/i);
       const fallbackFacturaMatch = textClean.match(/\b(000\d{4,7})\b/);
       let nro_factura = nroFacturaMatch ? nroFacturaMatch[1] : (fallbackFacturaMatch ? fallbackFacturaMatch[1] : "");
@@ -144,8 +91,7 @@ export default function Home() {
       setFormData({ nro_factura, monto: montoStr });
       setStep("review");
     } catch (error) {
-      console.error("OCR Error:", error);
-      alert("Error procesando la imagen con IA. Por favor, ingresa los datos manuales.");
+      alert("Error procesando imagen. Ingresa los datos manualmente.");
       setStep("review");
     } finally {
       setLoading(false); setOcrProgress("");
@@ -158,108 +104,88 @@ export default function Home() {
     
     setLoading(true);
     try {
+      let imageUrl = null;
+      if (compressedBlob) {
+        const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`;
+        const { data, error: uploadError } = await supabase.storage
+          .from("tickets")
+          .upload(fileName, compressedBlob, { contentType: "image/jpeg" });
+          
+        if (uploadError) throw new Error("Error subiendo foto: " + uploadError.message);
+        
+        const { data: { publicUrl } } = supabase.storage.from("tickets").getPublicUrl(fileName);
+        imageUrl = publicUrl;
+      }
+
       const { error } = await supabase.from("facturas").insert([
         {
           fecha: new Date().toISOString().split("T")[0],
           nro_factura: formData.nro_factura,
           monto: parseFloat(formData.monto) || 0,
-          user_id: session.user.id
+          user_id: session.user.email, // Usamos el correo corporativo como ID único
+          image_url: imageUrl
         },
       ]);
       if (error) throw error;
       setStep("success");
     } catch (error: any) {
-      console.error(error);
-      alert("Error guardando en la BD: " + (error?.message || "Error desconocido"));
+      alert("Error: " + (error?.message || "Desconocido"));
     } finally {
       setLoading(false);
     }
   };
 
+  // ... rest of generateReport and UI components
+  // Re-add them appropriately
   const generateReport = async () => {
-    if (!session?.access_token) return;
-    setReportLoading(true);
-    try {
-      const response = await fetch(`/api/generar-reporte?start=${startDate}&end=${endDate}`, {
-        headers: {
-          "Authorization": `Bearer ${session.access_token}`
-        }
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Error generando reporte");
-      }
-
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `Reporte_${startDate}_al_${endDate}.docx`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-    } catch (error: any) {
-      console.error(error);
-      alert("Error: " + error.message);
-    } finally {
-      setReportLoading(false);
-    }
+    // Note: since we moved to NextAuth, getting a raw token to send to our API might need custom logic
+    // But since NextAuth handles cookies, our API route can just read the NextAuth session!
+    alert("La generación de reportes ha sido movida al panel de RRHH. Solo RRHH genera los consolidados ahora.");
   };
 
   const resetFlow = () => {
-    setFile(null); setPreview(null); setFormData({ nro_factura: "", monto: "" }); setStep("capture");
+    setFile(null); setPreview(null); setCompressedBlob(null); setFormData({ nro_factura: "", monto: "" }); setStep("capture");
   };
+
+  if (status === "loading") {
+    return <div className="min-h-screen bg-slate-900 flex items-center justify-center text-white"><Loader2 className="w-8 h-8 animate-spin" /></div>;
+  }
 
   if (!session) {
     return (
       <main className="min-h-screen bg-slate-900 flex items-center justify-center p-4 text-white">
-        <div className="max-w-md w-full space-y-8 bg-slate-800 p-8 rounded-3xl shadow-xl border border-slate-700">
-          <div className="text-center">
-            <h1 className="text-3xl font-extrabold text-blue-400">SmartParking</h1>
-            <p className="text-slate-400 mt-2">{authMode === "login" ? "Inicia sesión para continuar" : "Crea tu cuenta de empleado"}</p>
-          </div>
-          <form onSubmit={handleAuth} className="space-y-4">
-            {authMode === "register" && (
-              <>
-                <input type="text" placeholder="Nombres y Apellidos" required value={authForm.nombres} onChange={e => setAuthForm({...authForm, nombres: e.target.value})} className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 outline-none focus:border-blue-500" />
-                <input type="text" placeholder="Cédula de Identidad" required value={authForm.cedula} onChange={e => setAuthForm({...authForm, cedula: e.target.value})} className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 outline-none focus:border-blue-500" />
-                <input type="text" placeholder="Cargo (Ej. Analista)" required value={authForm.cargo} onChange={e => setAuthForm({...authForm, cargo: e.target.value})} className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 outline-none focus:border-blue-500" />
-              </>
-            )}
-            <input type="email" placeholder="Correo Electrónico" required value={authForm.email} onChange={e => setAuthForm({...authForm, email: e.target.value})} className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 outline-none focus:border-blue-500" />
-            <input type="password" placeholder="Contraseña (mínimo 6 caracteres)" required value={authForm.password} onChange={e => setAuthForm({...authForm, password: e.target.value})} className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 outline-none focus:border-blue-500" />
-            
-            {authError && <p className="text-red-400 text-sm">{authError}</p>}
-            
-            <button type="submit" disabled={authLoading} className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-medium flex justify-center items-center">
-              {authLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : (authMode === "login" ? "Entrar" : "Registrarse")}
-            </button>
-          </form>
-          <p className="text-center text-sm text-slate-400">
-            {authMode === "login" ? "¿No tienes cuenta? " : "¿Ya tienes cuenta? "}
-            <button onClick={() => setAuthMode(authMode === "login" ? "register" : "login")} className="text-blue-400 hover:underline">
-              {authMode === "login" ? "Regístrate aquí" : "Inicia sesión"}
-            </button>
-          </p>
+        <div className="max-w-md w-full space-y-8 bg-slate-800 p-8 rounded-3xl shadow-xl border border-slate-700 text-center">
+          <h1 className="text-3xl font-extrabold text-blue-400">SmartParking</h1>
+          <p className="text-slate-400 mt-2">Plataforma Corporativa</p>
+          <button onClick={() => signIn()} className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-medium">
+            Iniciar Sesión con SSO
+          </button>
         </div>
       </main>
     );
   }
 
+  const isRrhh = (session.user as any).role === "rrhh";
+
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white p-4 font-sans selection:bg-blue-500/30">
+    <main className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white p-4 font-sans">
       <div className="max-w-md mx-auto space-y-8 py-4">
         
         <header className="flex justify-between items-center bg-slate-800/50 p-4 rounded-2xl border border-slate-700/50">
           <div>
             <h1 className="text-xl font-bold text-blue-400">SmartParking</h1>
-            <p className="text-xs text-slate-400 truncate w-40">{session.user.email}</p>
+            <p className="text-xs text-slate-400 truncate w-40">{session.user.name}</p>
           </div>
-          <button onClick={handleLogout} className="p-2 bg-slate-700 rounded-lg hover:bg-red-500/20 hover:text-red-400 transition">
-            <LogOut className="w-5 h-5" />
-          </button>
+          <div className="flex gap-2">
+            {isRrhh && (
+              <Link href="/rrhh" className="p-2 bg-blue-600/20 text-blue-400 rounded-lg hover:bg-blue-600/40 transition">
+                <Users className="w-5 h-5" />
+              </Link>
+            )}
+            <button onClick={() => signOut()} className="p-2 bg-slate-700 rounded-lg hover:bg-red-500/20 hover:text-red-400 transition">
+              <LogOut className="w-5 h-5" />
+            </button>
+          </div>
         </header>
 
         <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-3xl p-6 shadow-2xl">
@@ -272,8 +198,8 @@ export default function Home() {
                 </div>
               </div>
               <div className="text-center">
-                <h3 className="text-lg font-semibold">{loading ? "Analizando factura..." : "Capturar Factura"}</h3>
-                <p className="text-sm text-slate-400 mt-1">{loading ? (ocrProgress || "Extrayendo datos con IA") : "Toma una foto de tu ticket"}</p>
+                <h3 className="text-lg font-semibold">{loading ? "Procesando..." : "Escanear Factura"}</h3>
+                <p className="text-sm text-slate-400 mt-1">{loading ? ocrProgress : "Toma una foto de tu ticket"}</p>
               </div>
               <input type="file" accept="image/*" capture="environment" className="hidden" ref={fileInputRef} onChange={handleCapture} disabled={loading} />
             </div>
@@ -285,7 +211,7 @@ export default function Home() {
               {preview && (
                 <div className="relative w-full h-40 rounded-xl overflow-hidden mb-4 border border-slate-700">
                   <img src={preview} alt="Factura" className="object-cover w-full h-full opacity-80" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent" />
+                  <div className="absolute top-2 right-2 bg-black/60 px-2 py-1 rounded text-xs">A ser guardada para RRHH</div>
                 </div>
               )}
               <div className="space-y-2">
@@ -299,7 +225,7 @@ export default function Home() {
               <div className="pt-2 flex gap-3">
                 <button type="button" onClick={resetFlow} className="flex-1 py-3 rounded-xl border border-slate-600 text-slate-300 hover:bg-slate-700" disabled={loading}>Cancelar</button>
                 <button type="submit" disabled={loading} className="flex-1 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-medium flex justify-center items-center">
-                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Guardar"}
+                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Guardar Registro"}
                 </button>
               </div>
             </form>
@@ -309,32 +235,11 @@ export default function Home() {
             <div className="flex flex-col items-center justify-center space-y-4 py-8">
               <CheckCircle2 className="w-16 h-16 text-emerald-400" />
               <h3 className="text-xl font-semibold">¡Registro Exitoso!</h3>
-              <p className="text-sm text-slate-400 text-center">La factura ha sido guardada en la base de datos.</p>
+              <p className="text-sm text-slate-400 text-center">Ticket enviado al departamento de Recursos Humanos.</p>
               <button onClick={resetFlow} className="mt-4 px-6 py-3 rounded-xl bg-slate-700 hover:bg-slate-600 text-white transition">Registrar Otra</button>
             </div>
           )}
         </div>
-
-        <div className="pt-6 border-t border-slate-800 space-y-4">
-          <div className="bg-slate-800/30 p-4 rounded-2xl border border-slate-700/50 space-y-3">
-            <h4 className="text-sm font-medium text-slate-300 flex items-center gap-2"><Calendar className="w-4 h-4"/> Filtro Semanal</h4>
-            <div className="flex gap-2">
-              <div className="flex-1 space-y-1">
-                <label className="text-xs text-slate-500">Desde</label>
-                <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full bg-slate-900/50 border border-slate-700 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-500 text-white [color-scheme:dark]" />
-              </div>
-              <div className="flex-1 space-y-1">
-                <label className="text-xs text-slate-500">Hasta</label>
-                <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full bg-slate-900/50 border border-slate-700 rounded-lg px-3 py-2 text-sm outline-none focus:border-emerald-500 text-white [color-scheme:dark]" />
-              </div>
-            </div>
-          </div>
-          <button onClick={generateReport} disabled={reportLoading} className="w-full flex items-center justify-center gap-3 px-4 py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold shadow-lg shadow-emerald-500/20 transition-all disabled:opacity-50">
-            {reportLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : <FileText className="w-6 h-6" />}
-            {reportLoading ? "Generando documento..." : "Descargar Mi Reporte"}
-          </button>
-        </div>
-
       </div>
     </main>
   );
