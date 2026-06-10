@@ -1,53 +1,28 @@
 import NextAuth, { NextAuthOptions } from "next-auth";
-import CredentialsProvider from "next-auth/providers/credentials";
-
-// Esta es la configuración base para el "Login Único" (SSO).
-// Como RRHH necesita los perfiles unificados, aquí puedes añadir el Provider
-// de tu empresa (Google, Entra ID / Azure AD, Okta, etc.).
-// Por ahora he dejado un CredentialsProvider de prueba para que puedas 
-// testear la aplicación mientras conectas tu proveedor real.
+import KeycloakProvider from "next-auth/providers/keycloak";
 
 export const authOptions: NextAuthOptions = {
   providers: [
-    CredentialsProvider({
-      name: "Login Corporativo",
-      credentials: {
-        email: { label: "Correo", type: "email", placeholder: "empleado@empresa.com" },
-        password: { label: "Contraseña", type: "password" },
-      },
-      async authorize(credentials) {
-        // --- AQUÍ CONECTARÍAS CON TU API DE RRHH O ACTIVE DIRECTORY ---
-        // Por ahora simulamos un login exitoso genérico:
-        if (credentials?.email) {
-          return {
-            id: "empleado-123",
-            name: "Usuario Demo",
-            email: credentials.email,
-            // Podemos pasar datos custom como la cédula o cargo
-            image: "12345678|Analista" 
-          };
-        }
-        return null;
-      },
-    }),
+    KeycloakProvider({
+      clientId: process.env.KEYCLOAK_ID || "sudeparking",
+      clientSecret: process.env.KEYCLOAK_SECRET || "gDq5z6je1ma70PfRHU8ANVRwvNX6n9Nx",
+      issuer: process.env.KEYCLOAK_ISSUER || "http://172.16.205.33:8080/realms/sudeaseg"
+    })
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, profile }) {
+      // Cuando el usuario inicia sesión, guardamos sus datos en el token
       if (user) {
-        // Guardamos los datos extra en el token
-        const extraData = user.image ? user.image.split("|") : ["", ""];
-        token.cedula = extraData[0];
-        token.cargo = extraData[1];
-        // En NextAuth, para proteger las rutas administrativas, podemos chequear el correo:
+        // Validamos si tiene permisos de rrhh basado en su correo o algún rol
+        // Por ahora, si su correo contiene "rrhh", le damos acceso al dashboard.
         token.role = user.email?.includes("rrhh") ? "rrhh" : "empleado";
       }
       return token;
     },
     async session({ session, token }) {
+      // Pasamos los datos del token a la sesión en el cliente
       if (session.user) {
         (session.user as any).id = token.sub;
-        (session.user as any).cedula = token.cedula;
-        (session.user as any).cargo = token.cargo;
         (session.user as any).role = token.role;
       }
       return session;
@@ -56,9 +31,9 @@ export const authOptions: NextAuthOptions = {
   session: {
     strategy: "jwt",
   },
-  pages: {
-    // signIn: "/login", // Puedes personalizar la página de login luego
-  },
+  // Es obligatorio configurar un NEXTAUTH_SECRET en producción. 
+  // Usa una variable de entorno en Vercel, o dejamos un fallback para desarrollo:
+  secret: process.env.NEXTAUTH_SECRET || "super-secret-key-para-desarrollo-12345",
 };
 
 const handler = NextAuth(authOptions);
