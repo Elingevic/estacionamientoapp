@@ -236,7 +236,7 @@ export default function RrhhDashboard() {
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {selectedEmployee ? (
-                    facturasPorEmpleado[selectedEmployee]?.map((f, i) => (
+                    facturasPorEmpleado[selectedEmployee]?.map((f: any, i: number) => (
                       <tr key={i} className="hover:bg-slate-50/80 transition-colors group">
                         <td className="px-6 py-4 text-slate-600 font-medium">{new Date(f.fecha).toLocaleDateString("es-ES")}</td>
                         <td className="px-6 py-4 font-mono font-medium text-slate-500">{f.nro_factura}</td>
@@ -256,7 +256,7 @@ export default function RrhhDashboard() {
                       </tr>
                     ))
                   ) : (
-                    listaEmpleados.map((emp, i) => (
+                    listaEmpleados.map((emp: any, i: number) => (
                       <tr key={i} className="hover:bg-slate-50/80 transition-colors group">
                         <td className="px-6 py-4 font-bold text-slate-800">{emp.email}</td>
                         <td className="px-6 py-4 text-center font-medium text-slate-600">
