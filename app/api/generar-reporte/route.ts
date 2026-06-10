@@ -20,12 +20,18 @@ export async function GET() {
     if (error) throw error;
 
     let total_monto = 0;
+    const numberFormat = new Intl.NumberFormat("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+
     const facturasFormat = facturas?.map((f) => {
       total_monto += Number(f.monto);
       return {
         ...f,
-        monto: Number(f.monto).toFixed(2),
+        monto: `Bs.S ${numberFormat.format(Number(f.monto))}`,
         fecha: new Date(f.fecha).toLocaleDateString("es-ES"),
+        // nombre_estacionamiento y lugar ya vienen de Supabase
       };
     }) || [];
 
@@ -43,10 +49,14 @@ export async function GET() {
       linebreaks: true,
     });
 
+    // Inyectamos las variables que irán en el template Word
     doc.render({
       facturas: facturasFormat,
-      total_monto: total_monto.toFixed(2),
+      total_monto: `Bs.S ${numberFormat.format(total_monto)}`,
       fecha_generacion: new Date().toLocaleDateString("es-ES"),
+      nombres: "Victor Castorani",
+      cedula: "29.596.795",
+      cargo: "Desarrollador I"
     });
 
     const buf = doc.getZip().generate({
