@@ -1,26 +1,36 @@
 import NextAuth, { NextAuthOptions } from "next-auth";
-import KeycloakProvider from "next-auth/providers/keycloak";
+import CredentialsProvider from "next-auth/providers/credentials";
 
 export const authOptions: NextAuthOptions = {
   providers: [
-    KeycloakProvider({
-      clientId: process.env.KEYCLOAK_ID || "sudeparking",
-      clientSecret: process.env.KEYCLOAK_SECRET || "gDq5z6je1ma70PfRHU8ANVRwvNX6n9Nx",
-      issuer: process.env.KEYCLOAK_ISSUER || "http://172.16.205.33:8080/realms/sudeaseg"
+    CredentialsProvider({
+      name: "Login Corporativo",
+      credentials: {
+        email: { label: "Correo Corporativo", type: "email", placeholder: "empleado@sudeaseg.gob.ve" },
+        password: { label: "Contraseña", type: "password" },
+      },
+      async authorize(credentials) {
+        // MODO DEMO: Acepta cualquier correo y contraseña para facilitar la demostración
+        if (credentials?.email) {
+          return {
+            id: "demo-id-" + Math.random(),
+            name: "Usuario de Prueba",
+            email: credentials.email,
+          };
+        }
+        return null;
+      },
     })
   ],
   callbacks: {
-    async jwt({ token, user, profile }) {
-      // Cuando el usuario inicia sesión, guardamos sus datos en el token
+    async jwt({ token, user }) {
       if (user) {
-        // Validamos si tiene permisos de rrhh basado en su correo o algún rol
-        // Por ahora, si su correo contiene "rrhh", le damos acceso al dashboard.
+        // MODO DEMO: Si el correo de prueba incluye 'rrhh' le damos permisos administrativos
         token.role = user.email?.includes("rrhh") ? "rrhh" : "empleado";
       }
       return token;
     },
     async session({ session, token }) {
-      // Pasamos los datos del token a la sesión en el cliente
       if (session.user) {
         (session.user as any).id = token.sub;
         (session.user as any).role = token.role;
@@ -31,8 +41,6 @@ export const authOptions: NextAuthOptions = {
   session: {
     strategy: "jwt",
   },
-  // Es obligatorio configurar un NEXTAUTH_SECRET en producción. 
-  // Usa una variable de entorno en Vercel, o dejamos un fallback para desarrollo:
   secret: process.env.NEXTAUTH_SECRET || "super-secret-key-para-desarrollo-12345",
 };
 

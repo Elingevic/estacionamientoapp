@@ -4,7 +4,7 @@ import "./globals.css";
 import Providers from "./Providers";
 
 export const metadata: Metadata = {
-  title: "SmartParking",
+  title: "SudeParking",
   description: "Registro de facturas de estacionamiento",
 };
 

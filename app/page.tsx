@@ -4,7 +4,7 @@ import { useState, useRef } from "react";
 import { useSession, signIn, signOut } from "next-auth/react";
 import { createClient } from "@supabase/supabase-js";
 import Tesseract from "tesseract.js";
-import { Camera, FileText, Loader2, CheckCircle2, UploadCloud, LogOut, Calendar, Users } from "lucide-react";
+import { Camera, FileText, Loader2, CheckCircle2, UploadCloud, LogOut, Calendar, Users, Building2 } from "lucide-react";
 import Link from "next/link";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://dummy.supabase.co";
@@ -19,18 +19,12 @@ export default function Home() {
   const [compressedBlob, setCompressedBlob] = useState<Blob | null>(null);
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState<"capture" | "review" | "success">("capture");
-  const [reportLoading, setReportLoading] = useState(false);
   const [ocrProgress, setOcrProgress] = useState<string>("");
 
   const [formData, setFormData] = useState({
     nro_factura: "",
     monto: "",
   });
-
-  const [startDate, setStartDate] = useState(() => {
-    const d = new Date(); d.setDate(d.getDate() - 7); return d.toISOString().split("T")[0];
-  });
-  const [endDate, setEndDate] = useState(() => new Date().toISOString().split("T")[0]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -122,7 +116,7 @@ export default function Home() {
           fecha: new Date().toISOString().split("T")[0],
           nro_factura: formData.nro_factura,
           monto: parseFloat(formData.monto) || 0,
-          user_id: session.user.email, // Usamos el correo corporativo como ID único
+          user_id: session.user.email,
           image_url: imageUrl
         },
       ]);
@@ -135,30 +129,29 @@ export default function Home() {
     }
   };
 
-  // ... rest of generateReport and UI components
-  // Re-add them appropriately
-  const generateReport = async () => {
-    // Note: since we moved to NextAuth, getting a raw token to send to our API might need custom logic
-    // But since NextAuth handles cookies, our API route can just read the NextAuth session!
-    alert("La generación de reportes ha sido movida al panel de RRHH. Solo RRHH genera los consolidados ahora.");
-  };
-
   const resetFlow = () => {
     setFile(null); setPreview(null); setCompressedBlob(null); setFormData({ nro_factura: "", monto: "" }); setStep("capture");
   };
 
   if (status === "loading") {
-    return <div className="min-h-screen bg-slate-900 flex items-center justify-center text-white"><Loader2 className="w-8 h-8 animate-spin" /></div>;
+    return <div className="min-h-screen bg-brand-blue flex items-center justify-center text-white"><Loader2 className="w-8 h-8 animate-spin" /></div>;
   }
 
   if (!session) {
     return (
-      <main className="min-h-screen bg-slate-900 flex items-center justify-center p-4 text-white">
-        <div className="max-w-md w-full space-y-8 bg-slate-800 p-8 rounded-3xl shadow-xl border border-slate-700 text-center">
-          <h1 className="text-3xl font-extrabold text-blue-400">SmartParking</h1>
-          <p className="text-slate-400 mt-2">Plataforma Corporativa</p>
-          <button onClick={() => signIn()} className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-medium">
-            Iniciar Sesión con SSO
+      <main className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+        <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-3xl shadow-2xl border border-slate-100 text-center">
+          <div className="flex justify-center mb-6">
+            <div className="bg-brand-blue p-4 rounded-2xl shadow-lg">
+              <Building2 className="w-12 h-12 text-white" />
+            </div>
+          </div>
+          <div>
+            <h1 className="text-3xl font-extrabold text-brand-blue">SudeParking</h1>
+            <p className="text-slate-500 mt-2 font-medium">Plataforma Corporativa</p>
+          </div>
+          <button onClick={() => signIn()} className="w-full py-3.5 rounded-xl bg-brand-red hover:bg-brand-darkred text-white font-semibold text-lg shadow-lg shadow-brand-red/30 transition-all active:scale-95">
+            Iniciar Sesión
           </button>
         </div>
       </main>
@@ -168,63 +161,66 @@ export default function Home() {
   const isRrhh = (session.user as any).role === "rrhh";
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white p-4 font-sans">
-      <div className="max-w-md mx-auto space-y-8 py-4">
+    <main className="min-h-screen bg-slate-50 text-slate-800 p-4 font-sans">
+      <div className="max-w-md mx-auto space-y-6 py-4">
         
-        <header className="flex justify-between items-center bg-slate-800/50 p-4 rounded-2xl border border-slate-700/50">
-          <div>
-            <h1 className="text-xl font-bold text-blue-400">SmartParking</h1>
-            <p className="text-xs text-slate-400 truncate w-40">{session?.user?.name || session?.user?.email}</p>
+        <header className="flex justify-between items-center bg-brand-blue p-5 rounded-2xl shadow-xl shadow-brand-blue/20">
+          <div className="text-white">
+            <h1 className="text-xl font-bold flex items-center gap-2"><Building2 className="w-5 h-5"/> SudeParking</h1>
+            <p className="text-xs text-blue-200 mt-1 truncate w-48 opacity-90">{session?.user?.name || session?.user?.email}</p>
           </div>
           <div className="flex gap-2">
             {isRrhh && (
-              <Link href="/rrhh" className="p-2 bg-blue-600/20 text-blue-400 rounded-lg hover:bg-blue-600/40 transition">
+              <Link href="/rrhh" className="p-2.5 bg-white/10 text-white rounded-xl hover:bg-white/20 transition">
                 <Users className="w-5 h-5" />
               </Link>
             )}
-            <button onClick={() => signOut()} className="p-2 bg-slate-700 rounded-lg hover:bg-red-500/20 hover:text-red-400 transition">
+            <button onClick={() => signOut()} className="p-2.5 bg-black/20 text-white rounded-xl hover:bg-black/30 transition">
               <LogOut className="w-5 h-5" />
             </button>
           </div>
         </header>
 
-        <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-3xl p-6 shadow-2xl">
+        <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-xl">
           {step === "capture" && (
             <div className="flex flex-col items-center justify-center space-y-6 py-8">
               <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
-                <div className="absolute inset-0 bg-blue-500 rounded-full blur opacity-20 group-hover:opacity-40 transition duration-300"></div>
-                <div className="relative bg-slate-800 border-2 border-dashed border-blue-500/50 rounded-full p-8 transition-transform group-hover:scale-105">
-                  {loading ? <Loader2 className="w-12 h-12 text-blue-400 animate-spin" /> : <Camera className="w-12 h-12 text-blue-400" />}
+                <div className="absolute inset-0 bg-brand-red rounded-full blur-xl opacity-20 group-hover:opacity-40 transition duration-500"></div>
+                <div className="relative bg-white border-2 border-dashed border-brand-red/40 rounded-full p-10 transition-transform group-hover:scale-105 shadow-sm">
+                  {loading ? <Loader2 className="w-14 h-14 text-brand-red animate-spin" /> : <Camera className="w-14 h-14 text-brand-red" />}
                 </div>
               </div>
               <div className="text-center">
-                <h3 className="text-lg font-semibold">{loading ? "Procesando..." : "Escanear Factura"}</h3>
-                <p className="text-sm text-slate-400 mt-1">{loading ? ocrProgress : "Toma una foto de tu ticket"}</p>
+                <h3 className="text-xl font-bold text-slate-800">{loading ? "Procesando..." : "Escanear Factura"}</h3>
+                <p className="text-sm font-medium text-slate-500 mt-2">{loading ? ocrProgress : "Toma una foto de tu ticket de estacionamiento"}</p>
               </div>
               <input type="file" accept="image/*" capture="environment" className="hidden" ref={fileInputRef} onChange={handleCapture} disabled={loading} />
             </div>
           )}
 
           {step === "review" && (
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <h3 className="text-xl font-semibold mb-4 flex items-center gap-2"><UploadCloud className="text-blue-400 w-5 h-5" /> Validar Datos</h3>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <h3 className="text-xl font-bold text-brand-blue flex items-center gap-2 mb-2"><UploadCloud className="w-6 h-6" /> Validar Datos</h3>
               {preview && (
-                <div className="relative w-full h-40 rounded-xl overflow-hidden mb-4 border border-slate-700">
-                  <img src={preview} alt="Factura" className="object-cover w-full h-full opacity-80" />
-                  <div className="absolute top-2 right-2 bg-black/60 px-2 py-1 rounded text-xs">A ser guardada para RRHH</div>
+                <div className="relative w-full h-44 rounded-2xl overflow-hidden mb-2 border border-slate-200 shadow-inner">
+                  <img src={preview} alt="Factura" className="object-cover w-full h-full" />
+                  <div className="absolute top-3 right-3 bg-brand-blue/90 text-white px-3 py-1.5 rounded-lg text-xs font-semibold backdrop-blur-sm shadow-md">Auditoría RRHH</div>
                 </div>
               )}
               <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-300">Nro. de Factura</label>
-                <input type="text" required value={formData.nro_factura} onChange={(e) => setFormData({ ...formData, nro_factura: e.target.value })} className="w-full bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-3 outline-none focus:border-blue-500 transition-all text-white" />
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Nro. de Factura</label>
+                <input type="text" required value={formData.nro_factura} onChange={(e) => setFormData({ ...formData, nro_factura: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20 transition-all font-mono text-lg text-slate-800" />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-300">Monto ($ o Bs)</label>
-                <input type="number" step="0.01" required value={formData.monto} onChange={(e) => setFormData({ ...formData, monto: e.target.value })} className="w-full bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-3 outline-none focus:border-emerald-500 transition-all text-white" />
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Monto</label>
+                <div className="relative">
+                  <span className="absolute left-4 top-3.5 font-bold text-slate-400">$</span>
+                  <input type="number" step="0.01" required value={formData.monto} onChange={(e) => setFormData({ ...formData, monto: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-4 py-3.5 outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20 transition-all font-semibold text-lg text-slate-800" />
+                </div>
               </div>
-              <div className="pt-2 flex gap-3">
-                <button type="button" onClick={resetFlow} className="flex-1 py-3 rounded-xl border border-slate-600 text-slate-300 hover:bg-slate-700" disabled={loading}>Cancelar</button>
-                <button type="submit" disabled={loading} className="flex-1 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-medium flex justify-center items-center">
+              <div className="pt-4 flex gap-3">
+                <button type="button" onClick={resetFlow} className="flex-1 py-3.5 rounded-xl border-2 border-slate-200 text-slate-600 font-bold hover:bg-slate-50 transition" disabled={loading}>Cancelar</button>
+                <button type="submit" disabled={loading} className="flex-1 py-3.5 rounded-xl bg-brand-red hover:bg-brand-darkred text-white font-bold flex justify-center items-center shadow-lg shadow-brand-red/30 transition-all">
                   {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Guardar Registro"}
                 </button>
               </div>
@@ -232,11 +228,13 @@ export default function Home() {
           )}
 
           {step === "success" && (
-            <div className="flex flex-col items-center justify-center space-y-4 py-8">
-              <CheckCircle2 className="w-16 h-16 text-emerald-400" />
-              <h3 className="text-xl font-semibold">¡Registro Exitoso!</h3>
-              <p className="text-sm text-slate-400 text-center">Ticket enviado al departamento de Recursos Humanos.</p>
-              <button onClick={resetFlow} className="mt-4 px-6 py-3 rounded-xl bg-slate-700 hover:bg-slate-600 text-white transition">Registrar Otra</button>
+            <div className="flex flex-col items-center justify-center space-y-5 py-10">
+              <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mb-2">
+                <CheckCircle2 className="w-10 h-10 text-emerald-600" />
+              </div>
+              <h3 className="text-2xl font-bold text-slate-800">¡Registro Exitoso!</h3>
+              <p className="text-slate-500 text-center font-medium px-4">Ticket enviado y procesado para su reintegro.</p>
+              <button onClick={resetFlow} className="mt-6 w-full py-4 rounded-xl bg-brand-blue hover:bg-[#1f2a54] text-white font-bold shadow-lg shadow-brand-blue/20 transition-all">Registrar Otra Factura</button>
             </div>
           )}
         </div>

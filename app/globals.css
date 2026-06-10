@@ -3,6 +3,9 @@
 @theme {
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --color-brand-blue: #28366C;
+  --color-brand-red: #AF191C;
+  --color-brand-darkred: #69131F;
 }
 
 :root {
