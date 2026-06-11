@@ -14,13 +14,55 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 export default function RrhhDashboard() {
   const { data: session, status } = useSession();
   
+  const getInitialDates = () => {
+    const d = new Date();
+    const day = d.getDay() || 7;
+    const monday = new Date(d);
+    monday.setDate(d.getDate() - day + 1);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    return { start: monday.toISOString().split("T")[0], end: sunday.toISOString().split("T")[0] };
+  };
+
+  const getInitialWeek = () => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
+    const week1 = new Date(d.getFullYear(), 0, 4);
+    const weekNumber = 1 + Math.round(((d.getTime() - week1.getTime()) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
+    return `${d.getFullYear()}-W${weekNumber.toString().padStart(2, '0')}`;
+  };
+
   const [facturas, setFacturas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [startDate, setStartDate] = useState(() => {
-    const d = new Date(); d.setDate(d.getDate() - 7); return d.toISOString().split("T")[0];
-  });
-  const [endDate, setEndDate] = useState(() => new Date().toISOString().split("T")[0]);
+  
+  const { start: initStart, end: initEnd } = getInitialDates();
+  const [startDate, setStartDate] = useState(initStart);
+  const [endDate, setEndDate] = useState(initEnd);
+  const [selectedWeek, setSelectedWeek] = useState(getInitialWeek);
+
   const [searchTerm, setSearchTerm] = useState("");
+
+  const handleWeekChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setSelectedWeek(val);
+    if (!val) return;
+    
+    const [year, week] = val.split('-W').map(Number);
+    const jan4 = new Date(year, 0, 4);
+    const dayOfJan4 = jan4.getDay() || 7;
+    const firstMonday = new Date(jan4);
+    firstMonday.setDate(jan4.getDate() - dayOfJan4 + 1);
+    
+    const targetMonday = new Date(firstMonday);
+    targetMonday.setDate(firstMonday.getDate() + (week - 1) * 7);
+    
+    const targetSunday = new Date(targetMonday);
+    targetSunday.setDate(targetMonday.getDate() + 6);
+
+    setStartDate(targetMonday.toISOString().split('T')[0]);
+    setEndDate(targetSunday.toISOString().split('T')[0]);
+  };
   
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [selectedEmployee, setSelectedEmployee] = useState<string | null>(null);
@@ -139,12 +181,11 @@ export default function RrhhDashboard() {
             <h3 className="text-brand-blue font-bold flex items-center gap-2 text-lg mb-6"><Calendar className="w-5 h-5"/> Periodo a Pagar</h3>
             <div className="space-y-5">
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Desde</label>
-                <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20 transition-all font-medium text-slate-700" />
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Semana</label>
+                <input type="week" value={selectedWeek} onChange={handleWeekChange} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20 transition-all font-medium text-slate-700" />
               </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Hasta</label>
-                <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20 transition-all font-medium text-slate-700" />
+              <div className="text-xs text-slate-400 font-medium">
+                Cargando facturas del <strong className="text-slate-600">{new Date(startDate + "T12:00:00").toLocaleDateString("es-ES")}</strong> al <strong className="text-slate-600">{new Date(endDate + "T12:00:00").toLocaleDateString("es-ES")}</strong>
               </div>
             </div>
           </div>
