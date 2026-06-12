@@ -141,8 +141,21 @@ export default function Home() {
          }
       }
 
+      // Buscar Fecha
+      let fecha = new Date().toLocaleDateString("en-CA", { timeZone: "America/Caracas" });
+      const dateMatch = textClean.match(/FECHA[:\s]*(\d{2}[-/]\d{2}[-/]\d{4})/i) || textClean.match(/(\d{2}[-/]\d{2}[-/]\d{4})/);
+      if (dateMatch) {
+         const dStr = dateMatch[1].replace(/\//g, '-');
+         const parts = dStr.split('-');
+         if (parts.length === 3) {
+            // Asumimos formato DD-MM-YYYY
+            fecha = `${parts[2]}-${parts[1]}-${parts[0]}`;
+         }
+      }
+
       setFormData(prev => ({ 
         ...prev, 
+        fecha,
         nro_factura, 
         monto: montoStr,
         estacionamiento: estacionamiento,
