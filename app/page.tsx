@@ -35,6 +35,8 @@ export default function Home() {
 
   const [myFacturas, setMyFacturas] = useState<any[]>([]);
   const [fetchingFacturas, setFetchingFacturas] = useState(false);
+  const [editingFactura, setEditingFactura] = useState<any | null>(null);
+  const [editLoading, setEditLoading] = useState(false);
 
   const [startDate, setStartDate] = useState(() => {
     const d = new Date(); d.setDate(d.getDate() - 7); return d.toISOString().split("T")[0];
@@ -89,6 +91,44 @@ export default function Home() {
       console.error(e);
     } finally {
       if (!silent) setFetchingFacturas(false);
+    }
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingFactura) return;
+    setEditLoading(true);
+    try {
+      const montoVal = parseFloat(editingFactura.monto) || 0;
+      const dataToUpdate: any = {
+        fecha: editingFactura.fecha,
+        nro_factura: editingFactura.nro_factura,
+        monto: montoVal,
+        estacionamiento: editingFactura.estacionamiento || "",
+        nombre_estacionamiento: editingFactura.estacionamiento || "",
+        lugar: editingFactura.lugar || "",
+        tipo_vehiculo: editingFactura.tipo_vehiculo
+      };
+
+      if (bcvRate) {
+        dataToUpdate.tasa_usd = bcvRate;
+        dataToUpdate.monto_usd = montoVal / bcvRate;
+      }
+
+      const { error } = await supabase
+        .from("facturas")
+        .update(dataToUpdate)
+        .eq("id", editingFactura.id);
+
+      if (error) throw error;
+
+      alert("Registro actualizado correctamente");
+      setEditingFactura(null);
+      fetchMyFacturas(true);
+    } catch (err: any) {
+      alert("Error actualizando: " + (err?.message || "Desconocido"));
+    } finally {
+      setEditLoading(false);
     }
   };
 
@@ -158,11 +198,11 @@ export default function Home() {
          const montosRegex = /\b\d{1,3}(?:[.,]\d{3})*[.,]\d{2}\b|\b\d+[.,]\d{2}\b/g;
          let matchMonto; let maxMonto = 0;
          while ((matchMonto = montosRegex.exec(textClean)) !== null) {
-           let rawVal = matchMonto[0];
-           let lastSepIndex = Math.max(rawVal.lastIndexOf("."), rawVal.lastIndexOf(","));
-           let valStr = rawVal.substring(0, lastSepIndex).replace(/[.,]/g, "") + "." + rawVal.substring(lastSepIndex + 1);
-           let val = parseFloat(valStr);
-           if (!isNaN(val) && val > maxMonto) { maxMonto = val; montoStr = valStr; }
+            let rawVal = matchMonto[0];
+            let lastSepIndex = Math.max(rawVal.lastIndexOf("."), rawVal.lastIndexOf(","));
+            let valStr = rawVal.substring(0, lastSepIndex).replace(/[.,]/g, "") + "." + rawVal.substring(lastSepIndex + 1);
+            let val = parseFloat(valStr);
+            if (!isNaN(val) && val > maxMonto) { maxMonto = val; montoStr = valStr; }
          }
       }
 
@@ -502,11 +542,27 @@ export default function Home() {
                               {isMoto ? "Moto" : "Carro"}
                             </span>
                           </div>
+                          <div className="mt-1 space-y-0.5">
+                            <p className="text-xs text-slate-700 font-semibold flex items-center gap-1">
+                              🏨 {f.nombre_estacionamiento || f.estacionamiento || "Sin nombre"}
+                            </p>
+                            <p className="text-[11px] text-slate-400 font-medium flex items-center gap-1">
+                              📍 {f.lugar || "Sin lugar"}
+                            </p>
+                          </div>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className="text-sm font-bold text-slate-800">Bs. {Number(f.monto).toFixed(2)}</p>
-                        <p className="text-xs font-bold text-emerald-600">≈ ${itemUsd.toFixed(2)}</p>
+                      <div className="text-right flex flex-col justify-between items-end self-stretch">
+                        <div>
+                          <p className="text-sm font-bold text-slate-800">Bs. {Number(f.monto).toFixed(2)}</p>
+                          <p className="text-xs font-bold text-emerald-600">≈ ${itemUsd.toFixed(2)}</p>
+                        </div>
+                        <button
+                          onClick={() => setEditingFactura(f)}
+                          className="mt-2 text-xs font-bold text-brand-blue hover:text-brand-red flex items-center gap-1 bg-slate-100 px-2 py-1 rounded-lg hover:bg-slate-200 transition-colors"
+                        >
+                          ✏️ Editar
+                        </button>
                       </div>
                     </div>
                   );
@@ -517,6 +573,66 @@ export default function Home() {
         )}
 
       </div>
+
+      {/* MODAL PARA EDITAR FACTURA */}
+      {editingFactura && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md">
+          <div className="relative max-w-md w-full bg-white rounded-3xl p-6 shadow-2xl border border-slate-100" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold text-brand-blue flex items-center gap-2">
+                ✏️ Editar Registro
+              </h3>
+              <button onClick={() => setEditingFactura(null)} className="p-2 text-slate-400 hover:text-slate-600 rounded-lg">
+                ✕
+              </button>
+            </div>
+            
+            <form onSubmit={handleEditSubmit} className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Fecha</label>
+                <input type="date" required value={editingFactura.fecha} onChange={(e) => setEditingFactura({ ...editingFactura, fecha: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-brand-blue text-sm" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Nombre del Estacionamiento</label>
+                <input type="text" value={editingFactura.nombre_estacionamiento || editingFactura.estacionamiento || ""} onChange={(e) => setEditingFactura({ ...editingFactura, estacionamiento: e.target.value, nombre_estacionamiento: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-brand-blue text-sm" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Lugar</label>
+                <input type="text" value={editingFactura.lugar || ""} onChange={(e) => setEditingFactura({ ...editingFactura, lugar: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-brand-blue text-sm" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Nro. de Factura</label>
+                <input type="text" required value={editingFactura.nro_factura} onChange={(e) => setEditingFactura({ ...editingFactura, nro_factura: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-brand-blue text-sm font-mono" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tipo de Vehículo</label>
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => setEditingFactura({...editingFactura, tipo_vehiculo: "carro"})} className={`flex-1 py-2 px-3 rounded-lg border flex items-center justify-center gap-1.5 transition-all font-bold text-xs ${editingFactura.tipo_vehiculo === "carro" ? "border-brand-blue bg-brand-blue/5 text-brand-blue" : "border-slate-200 text-slate-500"}`}>
+                    <Car className="w-4 h-4" /> Carro
+                  </button>
+                  <button type="button" onClick={() => setEditingFactura({...editingFactura, tipo_vehiculo: "moto"})} className={`flex-1 py-2 px-3 rounded-lg border flex items-center justify-center gap-1.5 transition-all font-bold text-xs ${editingFactura.tipo_vehiculo === "moto" ? "border-brand-blue bg-brand-blue/5 text-brand-blue" : "border-slate-200 text-slate-500"}`}>
+                    <Bike className="w-4 h-4" /> Moto
+                  </button>
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Monto (Bs.)</label>
+                <input type="number" step="0.01" required value={editingFactura.monto} onChange={(e) => setEditingFactura({ ...editingFactura, monto: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-brand-blue text-sm font-semibold" />
+              </div>
+              
+              <div className="pt-2 flex gap-2">
+                <button type="button" onClick={() => setEditingFactura(null)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold hover:bg-slate-50 text-sm">Cancelar</button>
+                <button type="submit" disabled={editLoading} className="flex-1 py-2.5 rounded-xl bg-brand-blue text-white font-bold flex justify-center items-center shadow-md text-sm">
+                  {editLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Guardar"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </main>
+  );
+}>
     </main>
   );
 }
