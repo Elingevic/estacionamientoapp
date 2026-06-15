@@ -268,8 +268,8 @@ export default function Dashboard() {
                     acc[f.user_id].usd += (f.monto_usd ? Number(f.monto_usd) : Number(f.monto) / bcvRate);
                     return acc;
                   }, {} as Record<string, {tickets: number, bs: number, usd: number}>))
-                  .sort((a, b) => b[1].bs - a[1].bs)
-                  .map(([user, data], idx) => (
+                  .sort((a: any, b: any) => b[1].bs - a[1].bs)
+                  .map(([user, data]: [string, any], idx) => (
                     <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
                       <td className="px-4 py-3 font-bold text-slate-700">{user}</td>
                       <td className="px-4 py-3 text-center text-slate-600 font-medium">{data.tickets}</td>
