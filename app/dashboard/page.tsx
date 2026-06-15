@@ -130,8 +130,8 @@ export default function Dashboard() {
 
   const dataMensual = Object.keys(facturasPorMes).sort((a,b)=>Number(a)-Number(b)).map(m => ({
     name: mesesNombres[Number(m)],
-    "Monto Bs": facturasPorMes[Number(m)].montoBs,
-    "Monto USD": facturasPorMes[Number(m)].montoUsd
+    "Monto Bs": Number(facturasPorMes[Number(m)].montoBs.toFixed(2)),
+    "Monto USD": Number(facturasPorMes[Number(m)].montoUsd.toFixed(2))
   }));
 
   const dataPie = [
@@ -170,7 +170,7 @@ export default function Dashboard() {
         </header>
 
         {/* Tarjetas Superiores */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <div className={`grid grid-cols-1 ${isRrhh ? 'md:grid-cols-5' : 'md:grid-cols-4'} gap-4`}>
           <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
             <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center mb-4">
               <DollarSign className="w-6 h-6" />
@@ -188,13 +188,15 @@ export default function Dashboard() {
             <h2 className="text-3xl font-extrabold text-slate-800 mt-1">{totalFacturas}</h2>
           </div>
 
-          <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
-            <div className="w-12 h-12 bg-purple-100 text-purple-600 rounded-2xl flex items-center justify-center mb-4">
-              <Users className="w-6 h-6" />
+          {isRrhh && (
+            <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+              <div className="w-12 h-12 bg-purple-100 text-purple-600 rounded-2xl flex items-center justify-center mb-4">
+                <Users className="w-6 h-6" />
+              </div>
+              <p className="text-slate-500 font-bold uppercase text-xs tracking-wider">Personas</p>
+              <h2 className="text-3xl font-extrabold text-slate-800 mt-1">{totalPersonas}</h2>
             </div>
-            <p className="text-slate-500 font-bold uppercase text-xs tracking-wider">Personas</p>
-            <h2 className="text-3xl font-extrabold text-slate-800 mt-1">{totalPersonas}</h2>
-          </div>
+          )}
 
           <div className="bg-brand-blue p-6 rounded-3xl shadow-lg relative overflow-hidden">
             <div className="absolute top-0 right-0 p-4 opacity-10">
@@ -237,7 +239,11 @@ export default function Dashboard() {
                     <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} dy={10} />
                     <YAxis yAxisId="left" orientation="left" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} dx={-10} width={80} />
                     <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} dx={10} width={60} />
-                    <Tooltip cursor={{fill: '#f1f5f9'}} contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}} />
+                    <Tooltip 
+                      cursor={{fill: '#f1f5f9'}} 
+                      contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}} 
+                      formatter={(value: any, name: any) => [typeof value === 'number' ? value.toFixed(2) : value, name]}
+                    />
                     <Bar yAxisId="left" dataKey="Monto Bs" fill="#1f2a54" radius={[6, 6, 0, 0]} barSize={20} />
                     <Bar yAxisId="right" dataKey="Monto USD" fill="#10b981" radius={[6, 6, 0, 0]} barSize={20} />
                   </BarChart>
