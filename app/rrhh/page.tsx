@@ -85,22 +85,10 @@ export default function RrhhDashboard() {
   };
 
   useEffect(() => {
-    fetch("http://172.16.202.58:8000/api/rates/")
+    fetch("/api/bcv")
       .then(res => res.json())
-      .then(data => {
-        const usd = Array.isArray(data)
-          ? data.find((item: any) => item.currency === "USD")
-          : data.value?.find((item: any) => item.currency === "USD");
-        if (usd && usd.bd_venta_ask) {
-          setBcvRate(parseFloat(usd.bd_venta_ask));
-        }
-      })
-      .catch(() => {
-        fetch("/api/bcv")
-          .then(res => res.json())
-          .then(data => { if (data.tasa) setBcvRate(data.tasa); })
-          .catch(e => console.error(e));
-      });
+      .then(data => { if (data.tasa) setBcvRate(data.tasa); })
+      .catch(e => console.error(e));
   }, []);
 
   const handleWeekChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -215,7 +203,8 @@ export default function RrhhDashboard() {
   const promedioTicketUsd = totalTickets > 0 ? totalMontoUsd / totalTickets : 0;
 
   const exportToExcel = () => {
-    const dataToExport = filteredFacturas.map(f => ({
+    const dataSource = selectedEmployee ? facturasPorEmpleado[selectedEmployee] : filteredFacturas;
+    const dataToExport = dataSource.map((f: any) => ({
       "Fecha Escaneo": f.fecha,
       "Empleado (SSO)": f.user_id,
       "Nro. Factura": f.nro_factura,
@@ -373,7 +362,8 @@ export default function RrhhDashboard() {
                       <>
                         <th className="px-6 py-5 font-bold text-slate-500 uppercase tracking-wider text-xs">Fecha</th>
                         <th className="px-6 py-5 font-bold text-slate-500 uppercase tracking-wider text-xs">Nro. Factura</th>
-                        <th className="px-6 py-5 font-bold text-slate-500 uppercase tracking-wider text-xs text-right">Monto</th>
+                        <th className="px-6 py-5 font-bold text-slate-500 uppercase tracking-wider text-xs text-right">Monto Bs.</th>
+                        <th className="px-6 py-5 font-bold text-slate-500 uppercase tracking-wider text-xs text-right">Monto USD</th>
                         <th className="px-6 py-5 font-bold text-slate-500 uppercase tracking-wider text-xs text-center">Auditoría</th>
                       </>
                     ) : (
@@ -406,7 +396,9 @@ export default function RrhhDashboard() {
                         <td className="px-6 py-4 font-mono font-medium text-slate-500">{f.nro_factura}</td>
                         <td className="px-6 py-4 text-right">
                           <p className="font-bold text-emerald-600">Bs. {Number(f.monto).toFixed(2)}</p>
-                          <p className="text-xs font-bold text-slate-400">${f.monto_usd ? Number(f.monto_usd).toFixed(2) : (Number(f.monto) / bcvRate).toFixed(2)}</p>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <p className="text-sm font-bold text-slate-500">${f.monto_usd ? Number(f.monto_usd).toFixed(2) : (Number(f.monto) / bcvRate).toFixed(2)}</p>
                         </td>
                         <td className="px-6 py-4 flex items-center justify-center gap-2">
                           {f.image_url ? (

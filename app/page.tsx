@@ -46,22 +46,10 @@ export default function Home() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    fetch("http://172.16.202.58:8000/api/rates/")
+    fetch("/api/bcv")
       .then(res => res.json())
-      .then(data => {
-        const usd = Array.isArray(data)
-          ? data.find((item: any) => item.currency === "USD")
-          : data.value?.find((item: any) => item.currency === "USD");
-        if (usd && usd.bd_venta_ask) {
-          setBcvRate(parseFloat(usd.bd_venta_ask));
-        }
-      })
-      .catch(() => {
-        fetch("/api/bcv")
-          .then(res => res.json())
-          .then(data => { if (data.tasa) setBcvRate(data.tasa); })
-          .catch(e => console.error(e));
-      });
+      .then(data => { if (data.tasa) setBcvRate(data.tasa); })
+      .catch(e => console.error(e));
   }, []);
 
   useEffect(() => {
