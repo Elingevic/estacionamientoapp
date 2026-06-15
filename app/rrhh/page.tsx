@@ -332,8 +332,9 @@ export default function RrhhDashboard() {
                     ) : (
                       <>
                         <th className="px-6 py-5 font-bold text-slate-500 uppercase tracking-wider text-xs">Empleado</th>
-                        <th className="px-6 py-5 font-bold text-slate-500 uppercase tracking-wider text-xs text-center">Facturas Subidas</th>
-                        <th className="px-6 py-5 font-bold text-slate-500 uppercase tracking-wider text-xs text-right">Deuda Acumulada</th>
+                        <th className="px-6 py-5 font-bold text-slate-500 uppercase tracking-wider text-xs text-center">Tickets</th>
+                        <th className="px-6 py-5 font-bold text-slate-500 uppercase tracking-wider text-xs text-right">Monto Bs.</th>
+                        <th className="px-6 py-5 font-bold text-slate-500 uppercase tracking-wider text-xs text-right">Monto USD</th>
                         <th className="px-6 py-5 font-bold text-slate-500 uppercase tracking-wider text-xs text-center">Acciones</th>
                       </>
                     )}
@@ -380,8 +381,10 @@ export default function RrhhDashboard() {
                           <span className="bg-slate-100 px-3 py-1 rounded-full text-xs font-bold text-slate-500">{emp.totalTickets} tickets</span>
                         </td>
                         <td className="px-6 py-4 text-right">
-                          <p className="font-bold text-emerald-600">Bs. {emp.totalMonto.toFixed(2)}</p>
-                          <p className="text-xs font-bold text-slate-400">${emp.totalMontoUsd.toFixed(2)}</p>
+                          <p className="font-bold text-brand-blue">Bs. {emp.totalMonto.toFixed(2)}</p>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <p className="font-bold text-emerald-600">${emp.totalMontoUsd.toFixed(2)}</p>
                         </td>
                         <td className="px-6 py-4 flex items-center justify-center gap-2">
                           <button 
