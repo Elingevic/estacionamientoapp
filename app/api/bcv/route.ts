@@ -44,7 +44,7 @@ export async function GET() {
     // Tasa de fallback por seguridad si la API falla
     return NextResponse.json({ 
       success: false, 
-      tasa: 36.50, // Fallback aproximado
+      tasa: 587.40, // Fallback aproximado a la tasa actual
       error: error.message 
     }, { status: 200 }); // Status 200 para que el frontend no se caiga
   }

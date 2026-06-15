@@ -40,12 +40,28 @@ export default function RrhhDashboard() {
   const [startDate, setStartDate] = useState(initStart);
   const [endDate, setEndDate] = useState(initEnd);
   const [selectedWeek, setSelectedWeek] = useState(getInitialWeek);
-  const [bcvRate, setBcvRate] = useState<number>(36.5);
+  const [bcvRate, setBcvRate] = useState<number>(587.40);
 
   const [searchTerm, setSearchTerm] = useState("");
+  const [migrated, setMigrated] = useState(false);
 
   useEffect(() => {
-    fetch("/api/bcv").then(res => res.json()).then(data => { if (data.tasa) setBcvRate(data.tasa); }).catch(e => console.error(e));
+    fetch("http://172.16.202.58:8000/api/rates/")
+      .then(res => res.json())
+      .then(data => {
+        const usd = Array.isArray(data)
+          ? data.find((item: any) => item.currency === "USD")
+          : data.value?.find((item: any) => item.currency === "USD");
+        if (usd && usd.bd_venta_ask) {
+          setBcvRate(parseFloat(usd.bd_venta_ask));
+        }
+      })
+      .catch(() => {
+        fetch("/api/bcv")
+          .then(res => res.json())
+          .then(data => { if (data.tasa) setBcvRate(data.tasa); })
+          .catch(e => console.error(e));
+      });
   }, []);
 
   const handleWeekChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -89,7 +105,42 @@ export default function RrhhDashboard() {
         .order("fecha", { ascending: false });
 
       if (error) throw error;
-      setFacturas(data || []);
+      if (data) {
+        setFacturas(data);
+        
+        // Auto-corrección de facturas antiguas
+        if (!migrated && bcvRate && bcvRate > 100) {
+          const incorrectas = data.filter((f: any) => 
+            (f.nro_factura === "00027330" && f.tipo_vehiculo !== "moto") ||
+            (!f.tasa_usd || f.tasa_usd === 36.5 || (f.monto_usd && Math.abs(Number(f.monto_usd) - (Number(f.monto) / 36.5)) < 0.1))
+          );
+          if (incorrectas.length > 0) {
+            setMigrated(true);
+            (async () => {
+              for (const f of incorrectas) {
+                const updates: any = {};
+                if (f.nro_factura === "00027330" && f.tipo_vehiculo !== "moto") {
+                  updates.tipo_vehiculo = "moto";
+                }
+                if (!f.tasa_usd || f.tasa_usd === 36.5) {
+                  updates.tasa_usd = bcvRate;
+                  updates.monto_usd = Number(f.monto) / bcvRate;
+                }
+                if (Object.keys(updates).length > 0) {
+                  let q = supabase.from("facturas").update(updates);
+                  if (f.id) {
+                    q = q.eq("id", f.id);
+                  } else {
+                    q = q.eq("nro_factura", f.nro_factura).eq("user_id", f.user_id);
+                  }
+                  await q;
+                }
+              }
+              fetchFacturas();
+            })();
+          }
+        }
+      }
     } catch (error) {
       console.error("Error fetching facturas:", error);
       alert("Error cargando la data.");

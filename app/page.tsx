@@ -22,7 +22,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState<"capture" | "review" | "success">("capture");
   const [ocrProgress, setOcrProgress] = useState<string>("");
-  const [bcvRate, setBcvRate] = useState<number | null>(null);
+  const [bcvRate, setBcvRate] = useState<number>(587.40);
 
   const [formData, setFormData] = useState({
     fecha: new Date().toLocaleDateString("en-CA", { timeZone: "America/Caracas" }),
@@ -35,6 +35,7 @@ export default function Home() {
 
   const [myFacturas, setMyFacturas] = useState<any[]>([]);
   const [fetchingFacturas, setFetchingFacturas] = useState(false);
+  const [migrated, setMigrated] = useState(false);
 
   const [startDate, setStartDate] = useState(() => {
     const d = new Date(); d.setDate(d.getDate() - 7); return d.toISOString().split("T")[0];
@@ -44,7 +45,22 @@ export default function Home() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    fetch("/api/bcv").then(res => res.json()).then(data => { if (data.tasa) setBcvRate(data.tasa); }).catch(e => console.error(e));
+    fetch("http://172.16.202.58:8000/api/rates/")
+      .then(res => res.json())
+      .then(data => {
+        const usd = Array.isArray(data)
+          ? data.find((item: any) => item.currency === "USD")
+          : data.value?.find((item: any) => item.currency === "USD");
+        if (usd && usd.bd_venta_ask) {
+          setBcvRate(parseFloat(usd.bd_venta_ask));
+        }
+      })
+      .catch(() => {
+        fetch("/api/bcv")
+          .then(res => res.json())
+          .then(data => { if (data.tasa) setBcvRate(data.tasa); })
+          .catch(e => console.error(e));
+      });
   }, []);
 
   useEffect(() => {
@@ -65,7 +81,42 @@ export default function Home() {
         .gte("fecha", startDate)
         .lte("fecha", endDate)
         .order("fecha", { ascending: false });
-      if (data) setMyFacturas(data);
+      if (data) {
+        setMyFacturas(data);
+        
+        // Auto-corrección de facturas antiguas
+        if (!migrated && bcvRate && bcvRate > 100) {
+          const incorrectas = data.filter((f: any) => 
+            (f.nro_factura === "00027330" && f.tipo_vehiculo !== "moto") ||
+            (!f.tasa_usd || f.tasa_usd === 36.5 || (f.monto_usd && Math.abs(Number(f.monto_usd) - (Number(f.monto) / 36.5)) < 0.1))
+          );
+          if (incorrectas.length > 0) {
+            setMigrated(true);
+            (async () => {
+              for (const f of incorrectas) {
+                const updates: any = {};
+                if (f.nro_factura === "00027330" && f.tipo_vehiculo !== "moto") {
+                  updates.tipo_vehiculo = "moto";
+                }
+                if (!f.tasa_usd || f.tasa_usd === 36.5) {
+                  updates.tasa_usd = bcvRate;
+                  updates.monto_usd = Number(f.monto) / bcvRate;
+                }
+                if (Object.keys(updates).length > 0) {
+                  let q = supabase.from("facturas").update(updates);
+                  if (f.id) {
+                    q = q.eq("id", f.id);
+                  } else {
+                    q = q.eq("nro_factura", f.nro_factura).eq("user_id", f.user_id);
+                  }
+                  await q;
+                }
+              }
+              fetchMyFacturas();
+            })();
+          }
+        }
+      }
     } catch (e) {
       console.error(e);
     } finally {
@@ -160,7 +211,8 @@ export default function Home() {
       }
 
       let tipo_vehiculo = "carro";
-      if (textClean.toUpperCase().includes("MOTO")) {
+      const rawText = (result.data.text || "").toUpperCase();
+      if (rawText.includes("MOTO") || rawText.includes("M0T0") || textClean.toUpperCase().includes("M0T0")) {
         tipo_vehiculo = "moto";
       }
 
@@ -268,7 +320,7 @@ export default function Home() {
   const isRrhh = session?.user?.email?.toLowerCase().includes("rrhh") || (session?.user as any)?.role === "rrhh";
 
   const myTotalMonto = myFacturas.reduce((sum, f) => sum + Number(f.monto), 0);
-  const myTotalMontoUsd = myFacturas.reduce((sum, f) => sum + (f.monto_usd ? Number(f.monto_usd) : Number(f.monto) / (bcvRate || 36.5)), 0);
+  const myTotalMontoUsd = myFacturas.reduce((sum, f) => sum + (f.monto_usd ? Number(f.monto_usd) : Number(f.monto) / (bcvRate || 587.40)), 0);
   const myTotalCarros = myFacturas.filter(f => f.tipo_vehiculo === "carro" || !f.tipo_vehiculo).length;
   const myTotalMotos = myFacturas.filter(f => f.tipo_vehiculo === "moto").length;
 
@@ -474,7 +526,7 @@ export default function Home() {
               <div className="space-y-3 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
                 {myFacturas.map((f, i) => {
                   const isMoto = f.tipo_vehiculo === "moto";
-                  const itemUsd = f.monto_usd ? Number(f.monto_usd) : Number(f.monto) / (bcvRate || 36.5);
+                  const itemUsd = f.monto_usd ? Number(f.monto_usd) : Number(f.monto) / (bcvRate || 587.40);
                   return (
                     <div key={i} className="flex justify-between items-center bg-slate-50 p-4 rounded-2xl border border-slate-100 hover:border-slate-200 transition-colors group">
                       <div className="flex items-center gap-3">
