@@ -50,6 +50,9 @@ export default function RrhhDashboard() {
   const [exportType, setExportType] = useState<"general" | "individual">("general");
   const [exportEmployee, setExportEmployee] = useState<string>("");
 
+  const [exportEmployeeSearch, setExportEmployeeSearch] = useState("");
+  const [showEmployeeDropdown, setShowEmployeeDropdown] = useState(false);
+
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingFactura) return;
@@ -208,7 +211,9 @@ export default function RrhhDashboard() {
 
   const triggerExportModal = () => {
     setExportType(selectedEmployee ? "individual" : "general");
-    setExportEmployee(selectedEmployee || (listaEmpleados[0]?.email || ""));
+    const initialEmp = selectedEmployee || "";
+    setExportEmployee(initialEmp);
+    setExportEmployeeSearch(initialEmp);
     setExportModalOpen(true);
   };
 
@@ -564,19 +569,48 @@ export default function RrhhDashboard() {
               </div>
 
               {exportType === "individual" && (
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Seleccionar Empleado</label>
-                  <select value={exportEmployee} onChange={e => setExportEmployee(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-brand-blue text-sm font-medium">
-                    {listaEmpleados.map(e => (
-                      <option key={e.email} value={e.email}>{e.email}</option>
-                    ))}
-                  </select>
+                <div className="space-y-1 relative" onMouseLeave={() => setShowEmployeeDropdown(false)}>
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Buscar Empleado</label>
+                  <input 
+                    type="text" 
+                    placeholder="Escribe para buscar..."
+                    value={exportEmployeeSearch}
+                    onChange={e => {
+                      setExportEmployeeSearch(e.target.value);
+                      setShowEmployeeDropdown(true);
+                      setExportEmployee(""); // Limpiar selección si tipea
+                    }}
+                    onFocus={() => setShowEmployeeDropdown(true)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-brand-blue text-sm font-medium"
+                  />
+                  {showEmployeeDropdown && (
+                    <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl max-h-48 overflow-y-auto">
+                      {listaEmpleados
+                        .filter(e => e.email.toLowerCase().includes(exportEmployeeSearch.toLowerCase()))
+                        .map(e => (
+                          <div 
+                            key={e.email} 
+                            className="px-4 py-2.5 hover:bg-brand-blue/5 cursor-pointer text-sm font-medium text-slate-700 transition-colors border-b border-slate-50 last:border-0"
+                            onClick={() => {
+                              setExportEmployee(e.email);
+                              setExportEmployeeSearch(e.email);
+                              setShowEmployeeDropdown(false);
+                            }}
+                          >
+                            {e.email}
+                          </div>
+                      ))}
+                      {listaEmpleados.filter(e => e.email.toLowerCase().includes(exportEmployeeSearch.toLowerCase())).length === 0 && (
+                        <div className="px-4 py-3 text-sm text-slate-500 italic text-center">No se encontraron resultados</div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
               
               <div className="pt-4 flex gap-2">
                 <button type="button" onClick={() => setExportModalOpen(false)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold hover:bg-slate-50 text-sm transition-colors">Cancelar</button>
-                <button type="button" onClick={handleExportConfirm} className="flex-1 py-2.5 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-700 shadow-md text-sm transition-colors">
+                <button type="button" disabled={exportType === "individual" && !exportEmployee} onClick={handleExportConfirm} className="flex-1 py-2.5 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-700 shadow-md text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                   Descargar Excel
                 </button>
               </div>
