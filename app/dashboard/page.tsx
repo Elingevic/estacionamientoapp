@@ -19,6 +19,11 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [facturas, setFacturas] = useState<any[]>([]);
 
+  const [startDate, setStartDate] = useState(() => {
+    const d = new Date(); d.setDate(d.getDate() - 30); return d.toISOString().split("T")[0];
+  });
+  const [endDate, setEndDate] = useState(() => new Date().toISOString().split("T")[0]);
+
   const [bcvRate, setBcvRate] = useState<number>(587.40);
 
   useEffect(() => {
@@ -44,13 +49,15 @@ export default function Dashboard() {
     if (status === "authenticated") {
       fetchData();
     }
-  }, [status]);
+  }, [status, startDate, endDate]);
 
   const fetchData = async (silent = false) => {
     if (!silent) setLoading(true);
     try {
       const isRrhh = session?.user?.email?.toLowerCase().includes("rrhh") || (session?.user as any)?.role === "rrhh";
-      let query = supabase.from("facturas").select("*");
+      let query = supabase.from("facturas").select("*")
+        .gte("fecha", startDate)
+        .lte("fecha", endDate);
       
       if (!isRrhh) {
         query = query.eq("user_id", session!.user!.email);
@@ -139,8 +146,8 @@ export default function Dashboard() {
   // Gastos mensuales para gráfica
   const mesesNombres = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
   const facturasPorMes = facturas.reduce((acc, f) => {
-    const d = new Date(f.fecha);
-    const mesIdx = d.getMonth();
+    const [y, m, d] = f.fecha.split("-");
+    const mesIdx = Number(m) - 1;
     if (!acc[mesIdx]) acc[mesIdx] = { montoBs: 0, montoUsd: 0 };
     acc[mesIdx].montoBs += Number(f.monto);
     acc[mesIdx].montoUsd += (f.monto_usd ? Number(f.monto_usd) : Number(f.monto) / bcvRate);
@@ -174,6 +181,16 @@ export default function Dashboard() {
                 Dashboard {isRrhh ? "Global RRHH" : "Personal"}
               </h1>
               <p className="text-slate-500 font-medium">Estadísticas de gastos de estacionamiento</p>
+            </div>
+          </div>
+          <div className="flex gap-4 items-center">
+            <div className="flex flex-col">
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Desde</label>
+              <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm font-bold text-slate-600 outline-none focus:border-brand-blue" />
+            </div>
+            <div className="flex flex-col">
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Hasta</label>
+              <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm font-bold text-slate-600 outline-none focus:border-brand-blue" />
             </div>
           </div>
         </header>

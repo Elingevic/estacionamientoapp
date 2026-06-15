@@ -364,13 +364,13 @@ export default function Home() {
             <h1 className="text-xl font-bold flex items-center gap-2"><Building2 className="w-5 h-5"/> SudeParking</h1>
             <p className="text-xs text-blue-200 mt-1 truncate w-48 opacity-90">{session?.user?.name || session?.user?.email}</p>
           </div>
-          <div className="flex gap-2">
-            <Link href="/dashboard" className="p-2.5 bg-white/10 text-white rounded-xl hover:bg-white/20 transition">
-              <BarChart3 className="w-5 h-5" />
+          <div className="flex gap-2 flex-wrap justify-end">
+            <Link href="/dashboard" className="flex items-center gap-2 px-4 py-2.5 bg-white/10 text-white rounded-xl hover:bg-white/20 transition font-bold text-sm">
+              <BarChart3 className="w-5 h-5" /> Estadísticas
             </Link>
             {isRrhh && (
-              <Link href="/rrhh" className="p-2.5 bg-white/10 text-white rounded-xl hover:bg-white/20 transition">
-                <Users className="w-5 h-5" />
+              <Link href="/rrhh" className="flex items-center gap-2 px-4 py-2.5 bg-white/10 text-white rounded-xl hover:bg-white/20 transition font-bold text-sm">
+                <Users className="w-5 h-5" /> RRHH
               </Link>
             )}
             <button onClick={() => signOut()} className="p-2.5 bg-black/20 text-white rounded-xl hover:bg-black/30 transition">
@@ -534,7 +534,7 @@ export default function Home() {
                           {isMoto ? <Bike className="w-4 h-4" /> : <Car className="w-4 h-4" />}
                         </div>
                         <div>
-                          <p className="text-xs font-bold text-slate-800">{new Date(f.fecha).toLocaleDateString("es-ES")}</p>
+                          <p className="text-xs font-bold text-slate-800">{new Date(f.fecha + "T12:00:00").toLocaleDateString("es-ES")}</p>
                           <div className="flex items-center gap-1.5 mt-0.5">
                             <span className="text-xs text-slate-500 font-mono">#{f.nro_factura}</span>
                             <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-full uppercase ${isMoto ? 'bg-red-50 text-brand-red border border-red-200' : 'bg-blue-50 text-brand-blue border border-blue-200'}`}>

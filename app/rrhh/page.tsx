@@ -346,7 +346,7 @@ export default function RrhhDashboard() {
                       <tr key={i} className="hover:bg-slate-50/80 transition-colors group">
                         <td className="px-6 py-4 text-slate-600 font-medium">
                            <div className="flex flex-col items-start">
-                             <span>{new Date(f.fecha).toLocaleDateString("es-ES")}</span>
+                             <span>{new Date(f.fecha + "T12:00:00").toLocaleDateString("es-ES")}</span>
                              {f.tipo_vehiculo === "moto" ? (
                                <span className="inline-flex items-center gap-1 text-[10px] bg-red-100 text-brand-red px-2 py-0.5 rounded-full font-bold mt-1 w-max"><Bike className="w-3 h-3"/> Moto</span>
                              ) : (

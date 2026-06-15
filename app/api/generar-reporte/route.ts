@@ -55,12 +55,19 @@ export async function GET(request: Request) {
       maximumFractionDigits: 2,
     });
 
+    let previousDate = "";
     const facturasFormat = facturas?.map((f) => {
       total_monto += Number(f.monto);
+      
+      const [y, m, d] = f.fecha.split("-");
+      const currentFecha = `${d}/${m}/${y}`;
+      const fechaToDisplay = currentFecha === previousDate ? "" : currentFecha;
+      previousDate = currentFecha;
+
       return {
         ...f,
         monto: `Bs. ${numberFormat.format(Number(f.monto))}`,
-        fecha: new Date(f.fecha).toLocaleDateString("es-ES", { timeZone: "America/Caracas" }),
+        fecha: fechaToDisplay,
         // Añadimos datos más cortos para que la tabla en Word no se desborde
         empleado: f.user_id,
         nombre_estacionamiento: f.nombre_estacionamiento || f.estacionamiento || "No especificado",
