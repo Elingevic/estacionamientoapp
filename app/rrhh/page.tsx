@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { createClient } from "@supabase/supabase-js";
-import { Download, Calendar, Search, ExternalLink, Activity, DollarSign, Receipt, AlertCircle, X, ShieldAlert, Loader2, Building2, FileText, LogOut } from "lucide-react";
+import { Download, Calendar, Search, ExternalLink, Activity, DollarSign, Receipt, AlertCircle, X, ShieldAlert, Loader2, Building2, FileText, LogOut, BarChart3, Car, Bike } from "lucide-react";
 import Link from "next/link";
 import * as XLSX from "xlsx";
 
@@ -40,8 +40,13 @@ export default function RrhhDashboard() {
   const [startDate, setStartDate] = useState(initStart);
   const [endDate, setEndDate] = useState(initEnd);
   const [selectedWeek, setSelectedWeek] = useState(getInitialWeek);
+  const [bcvRate, setBcvRate] = useState<number>(36.5);
 
   const [searchTerm, setSearchTerm] = useState("");
+
+  useEffect(() => {
+    fetch("/api/bcv").then(res => res.json()).then(data => { if (data.tasa) setBcvRate(data.tasa); }).catch(e => console.error(e));
+  }, []);
 
   const handleWeekChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
@@ -108,12 +113,15 @@ export default function RrhhDashboard() {
     email,
     facturas: facturasPorEmpleado[email],
     totalMonto: facturasPorEmpleado[email].reduce((sum: number, f: any) => sum + Number(f.monto), 0),
+    totalMontoUsd: facturasPorEmpleado[email].reduce((sum: number, f: any) => sum + (f.monto_usd ? Number(f.monto_usd) : Number(f.monto) / bcvRate), 0),
     totalTickets: facturasPorEmpleado[email].length
   }));
 
   const totalMonto = filteredFacturas.reduce((acc, f) => acc + Number(f.monto), 0);
+  const totalMontoUsd = filteredFacturas.reduce((acc, f) => acc + (f.monto_usd ? Number(f.monto_usd) : Number(f.monto) / bcvRate), 0);
   const totalTickets = filteredFacturas.length;
   const promedioTicket = totalTickets > 0 ? totalMonto / totalTickets : 0;
+  const promedioTicketUsd = totalTickets > 0 ? totalMontoUsd / totalTickets : 0;
 
   const exportToExcel = () => {
     const dataToExport = filteredFacturas.map(f => ({
@@ -163,6 +171,9 @@ export default function RrhhDashboard() {
           </div>
         </div>
         <div className="flex gap-4 w-full md:w-auto">
+          <Link href="/dashboard" className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-blue-100 text-brand-blue font-bold hover:bg-blue-200 transition-all shadow-sm">
+            <BarChart3 className="w-5 h-5" /> Estadísticas
+          </Link>
           <button onClick={() => signOut()} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-xl border-2 border-slate-200 text-slate-600 font-bold hover:bg-slate-50 transition-all">
             <LogOut className="w-5 h-5" /> Cerrar Sesión
           </button>
@@ -200,6 +211,7 @@ export default function RrhhDashboard() {
               <div className="bg-black/20 rounded-2xl p-5 border border-white/10 backdrop-blur-sm">
                 <p className="text-sm text-blue-200 flex items-center gap-2 mb-1 font-medium"><DollarSign className="w-4 h-4"/> Deuda Total</p>
                 <p className="text-4xl font-extrabold text-white">Bs. {totalMonto.toFixed(2)}</p>
+                <p className="text-sm font-bold text-emerald-300 mt-1">≈ ${totalMontoUsd.toFixed(2)} USD</p>
               </div>
               
               <div className="grid grid-cols-2 gap-4">
@@ -210,6 +222,7 @@ export default function RrhhDashboard() {
                 <div className="bg-black/20 rounded-2xl p-4 border border-white/10 backdrop-blur-sm">
                   <p className="text-xs text-blue-200 mb-1 font-medium">Promedio</p>
                   <p className="text-xl font-bold text-white">Bs. {promedioTicket.toFixed(2)}</p>
+                  <p className="text-xs font-bold text-emerald-300">≈ ${promedioTicketUsd.toFixed(2)}</p>
                 </div>
               </div>
             </div>
@@ -279,9 +292,21 @@ export default function RrhhDashboard() {
                   {selectedEmployee ? (
                     facturasPorEmpleado[selectedEmployee]?.map((f: any, i: number) => (
                       <tr key={i} className="hover:bg-slate-50/80 transition-colors group">
-                        <td className="px-6 py-4 text-slate-600 font-medium">{new Date(f.fecha).toLocaleDateString("es-ES")}</td>
+                        <td className="px-6 py-4 text-slate-600 font-medium">
+                           <div className="flex flex-col items-start">
+                             <span>{new Date(f.fecha).toLocaleDateString("es-ES")}</span>
+                             {f.tipo_vehiculo === "moto" ? (
+                               <span className="inline-flex items-center gap-1 text-[10px] bg-red-100 text-brand-red px-2 py-0.5 rounded-full font-bold mt-1 w-max"><Bike className="w-3 h-3"/> Moto</span>
+                             ) : (
+                               <span className="inline-flex items-center gap-1 text-[10px] bg-blue-100 text-brand-blue px-2 py-0.5 rounded-full font-bold mt-1 w-max"><Car className="w-3 h-3"/> Carro</span>
+                             )}
+                           </div>
+                        </td>
                         <td className="px-6 py-4 font-mono font-medium text-slate-500">{f.nro_factura}</td>
-                        <td className="px-6 py-4 text-right font-bold text-emerald-600">Bs. {Number(f.monto).toFixed(2)}</td>
+                        <td className="px-6 py-4 text-right">
+                          <p className="font-bold text-emerald-600">Bs. {Number(f.monto).toFixed(2)}</p>
+                          <p className="text-xs font-bold text-slate-400">${f.monto_usd ? Number(f.monto_usd).toFixed(2) : (Number(f.monto) / bcvRate).toFixed(2)}</p>
+                        </td>
                         <td className="px-6 py-4 flex items-center justify-center gap-2">
                           {f.image_url ? (
                             <button 
@@ -303,7 +328,10 @@ export default function RrhhDashboard() {
                         <td className="px-6 py-4 text-center font-medium text-slate-600">
                           <span className="bg-slate-100 px-3 py-1 rounded-full text-xs font-bold text-slate-500">{emp.totalTickets} tickets</span>
                         </td>
-                        <td className="px-6 py-4 text-right font-bold text-emerald-600">Bs. {emp.totalMonto.toFixed(2)}</td>
+                        <td className="px-6 py-4 text-right">
+                          <p className="font-bold text-emerald-600">Bs. {emp.totalMonto.toFixed(2)}</p>
+                          <p className="text-xs font-bold text-slate-400">${emp.totalMontoUsd.toFixed(2)}</p>
+                        </td>
                         <td className="px-6 py-4 flex items-center justify-center gap-2">
                           <button 
                             onClick={() => setSelectedEmployee(emp.email)}

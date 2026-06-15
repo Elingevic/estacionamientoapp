@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useSession, signIn, signOut } from "next-auth/react";
 import { createClient } from "@supabase/supabase-js";
 import Tesseract from "tesseract.js";
-import { Camera, FileText, Loader2, CheckCircle2, UploadCloud, LogOut, Calendar, Users, Building2, Receipt } from "lucide-react";
+import { Camera, FileText, Loader2, CheckCircle2, UploadCloud, LogOut, Calendar, Users, Building2, Receipt, Car, Bike, BarChart3 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -21,14 +21,17 @@ export default function Home() {
   const [compressedBlob, setCompressedBlob] = useState<Blob | null>(null);
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState<"capture" | "review" | "success">("capture");
+  const [step, setStep] = useState<"capture" | "review" | "success">("capture");
   const [ocrProgress, setOcrProgress] = useState<string>("");
+  const [bcvRate, setBcvRate] = useState<number | null>(null);
 
   const [formData, setFormData] = useState({
     fecha: new Date().toLocaleDateString("en-CA", { timeZone: "America/Caracas" }),
     nro_factura: "",
     monto: "",
     estacionamiento: "",
-    lugar: ""
+    lugar: "",
+    tipo_vehiculo: "carro"
   });
 
   const [myFacturas, setMyFacturas] = useState<any[]>([]);
@@ -40,6 +43,10 @@ export default function Home() {
   const [endDate, setEndDate] = useState(() => new Date().toISOString().split("T")[0]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    fetch("/api/bcv").then(res => res.json()).then(data => { if (data.tasa) setBcvRate(data.tasa); }).catch(e => console.error(e));
+  }, []);
 
   useEffect(() => {
     if (status === "authenticated" && (session?.user as any)?.role === "rrhh") {
@@ -189,33 +196,56 @@ export default function Home() {
         imageUrl = publicUrl;
       }
 
-      let insertData: any = {
+      let dataToInsert: any = {
         fecha: formData.fecha,
         nro_factura: formData.nro_factura,
         monto: parseFloat(formData.monto) || 0,
         user_id: session.user.email,
         image_url: imageUrl,
         estacionamiento: formData.estacionamiento,
-        lugar: formData.lugar
+        lugar: formData.lugar,
+        tipo_vehiculo: formData.tipo_vehiculo
       };
 
-      const { error } = await supabase.from("facturas").insert([insertData]);
+      if (bcvRate) {
+        dataToInsert.tasa_usd = bcvRate;
+        dataToInsert.monto_usd = (parseFloat(formData.monto) || 0) / bcvRate;
+      }
+
+      let { error } = await supabase.from("facturas").insert([dataToInsert]);
+      
+      if (error && (error.message.includes("monto_usd") || error.message.includes("tasa_usd"))) {
+        delete dataToInsert.monto_usd;
+        delete dataToInsert.tasa_usd;
+        const res0 = await supabase.from("facturas").insert([dataToInsert]);
+        error = res0.error;
+      }
       
       if (error && error.message.includes("estacionamiento")) {
-        // Podría ser que la columna se llame 'nombre_estacionamiento'
-        const altData = { ...insertData };
-        delete altData.estacionamiento;
-        altData.nombre_estacionamiento = formData.estacionamiento;
-        
-        const { error: altError } = await supabase.from("facturas").insert([altData]);
-        if (altError) {
-          // Fallback final si no existen las columnas en lo absoluto
-          delete altData.nombre_estacionamiento;
-          delete altData.lugar;
-          const { error: fallbackError } = await supabase.from("facturas").insert([altData]);
-          if (fallbackError) throw fallbackError;
+        delete dataToInsert.estacionamiento;
+        dataToInsert.nombre_estacionamiento = formData.estacionamiento;
+        const res2 = await supabase.from("facturas").insert([dataToInsert]);
+        error = res2.error;
+        if (error && error.message.includes("nombre_estacionamiento")) {
+          delete dataToInsert.nombre_estacionamiento;
+          const res3 = await supabase.from("facturas").insert([dataToInsert]);
+          error = res3.error;
         }
-      } else if (error) {
+      }
+
+      if (error && error.message.includes("tipo_vehiculo")) {
+        delete dataToInsert.tipo_vehiculo;
+        const res4 = await supabase.from("facturas").insert([dataToInsert]);
+        error = res4.error;
+      }
+      
+      if (error && error.message.includes("lugar")) {
+        delete dataToInsert.lugar;
+        const res5 = await supabase.from("facturas").insert([dataToInsert]);
+        error = res5.error;
+      }
+
+      if (error) {
         throw error;
       }
       setStep("success");
@@ -227,7 +257,7 @@ export default function Home() {
   };
 
   const resetFlow = () => {
-    setFile(null); setPreview(null); setCompressedBlob(null); setFormData({ fecha: new Date().toLocaleDateString("en-CA", { timeZone: "America/Caracas" }), nro_factura: "", monto: "", estacionamiento: "", lugar: "" }); setStep("capture");
+    setFile(null); setPreview(null); setCompressedBlob(null); setFormData({ fecha: new Date().toLocaleDateString("en-CA", { timeZone: "America/Caracas" }), nro_factura: "", monto: "", estacionamiento: "", lugar: "", tipo_vehiculo: "carro" }); setStep("capture");
   };
 
   const isRrhh = session?.user?.email?.toLowerCase().includes("rrhh") || (session?.user as any)?.role === "rrhh";
@@ -273,6 +303,9 @@ export default function Home() {
             <p className="text-xs text-blue-200 mt-1 truncate w-48 opacity-90">{session?.user?.name || session?.user?.email}</p>
           </div>
           <div className="flex gap-2">
+            <Link href="/dashboard" className="p-2.5 bg-white/10 text-white rounded-xl hover:bg-white/20 transition">
+              <BarChart3 className="w-5 h-5" />
+            </Link>
             {isRrhh && (
               <Link href="/rrhh" className="p-2.5 bg-white/10 text-white rounded-xl hover:bg-white/20 transition">
                 <Users className="w-5 h-5" />
@@ -287,15 +320,19 @@ export default function Home() {
         <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-xl">
           {step === "capture" && (
             <div className="flex flex-col items-center justify-center space-y-6 py-8">
-              <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
-                <div className="absolute inset-0 bg-brand-red rounded-full blur-xl opacity-20 group-hover:opacity-40 transition duration-500"></div>
-                <div className="relative bg-white border-2 border-dashed border-brand-red/40 rounded-full p-10 transition-transform group-hover:scale-105 shadow-sm">
-                  {loading ? <Loader2 className="w-14 h-14 text-brand-red animate-spin" /> : <Camera className="w-14 h-14 text-brand-red" />}
+              <div className="flex w-full gap-4 px-2">
+                <div className="flex-1 flex flex-col items-center justify-center p-6 bg-slate-50 border-2 border-dashed border-brand-red/40 rounded-3xl hover:bg-brand-red/5 cursor-pointer transition-all group" onClick={() => fileInputRef.current?.click()}>
+                  <Camera className="w-10 h-10 text-brand-red group-hover:scale-110 transition-transform mb-3" />
+                  <h3 className="font-bold text-slate-800 text-center text-sm">Escanear Foto</h3>
+                </div>
+                <div className="flex-1 flex flex-col items-center justify-center p-6 bg-slate-50 border-2 border-dashed border-brand-blue/40 rounded-3xl hover:bg-brand-blue/5 cursor-pointer transition-all group" onClick={() => { setFile(null); setPreview(null); setStep("review"); }}>
+                  <FileText className="w-10 h-10 text-brand-blue group-hover:scale-110 transition-transform mb-3" />
+                  <h3 className="font-bold text-slate-800 text-center text-sm">Carga Manual</h3>
                 </div>
               </div>
-              <div className="text-center">
-                <h3 className="text-xl font-bold text-slate-800">{loading ? "Procesando..." : "Escanear Factura"}</h3>
-                <p className="text-sm font-medium text-slate-500 mt-2">{loading ? ocrProgress : "Toma una foto de tu ticket de estacionamiento"}</p>
+              <div className="text-center mt-4">
+                <p className="text-sm font-medium text-slate-500">{loading ? ocrProgress || "Procesando..." : "Selecciona una opción para registrar tu factura"}</p>
+                {bcvRate && <p className="text-xs font-bold text-brand-blue mt-2">Tasa BCV del día: Bs. {bcvRate.toFixed(2)}</p>}
               </div>
               <input type="file" accept="image/*" capture="environment" className="hidden" ref={fileInputRef} onChange={handleCapture} disabled={loading} />
             </div>
@@ -327,11 +364,25 @@ export default function Home() {
                 <input type="text" required value={formData.nro_factura} onChange={(e) => setFormData({ ...formData, nro_factura: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20 transition-all font-mono text-lg text-slate-800" />
               </div>
               <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tipo de Vehículo</label>
+                <div className="flex gap-3">
+                  <button type="button" onClick={() => setFormData({...formData, tipo_vehiculo: "carro"})} className={`flex-1 py-3 px-4 rounded-xl border-2 flex items-center justify-center gap-2 transition-all font-bold ${formData.tipo_vehiculo === "carro" ? "border-brand-blue bg-brand-blue/5 text-brand-blue" : "border-slate-200 text-slate-500 hover:bg-slate-50"}`}>
+                    <Car className="w-5 h-5" /> Carro
+                  </button>
+                  <button type="button" onClick={() => setFormData({...formData, tipo_vehiculo: "moto"})} className={`flex-1 py-3 px-4 rounded-xl border-2 flex items-center justify-center gap-2 transition-all font-bold ${formData.tipo_vehiculo === "moto" ? "border-brand-blue bg-brand-blue/5 text-brand-blue" : "border-slate-200 text-slate-500 hover:bg-slate-50"}`}>
+                    <Bike className="w-5 h-5" /> Moto
+                  </button>
+                </div>
+              </div>
+              <div className="space-y-2">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Monto</label>
                 <div className="relative">
                   <span className="absolute left-4 top-3.5 font-bold text-slate-400">Bs.</span>
                   <input type="number" step="0.01" required value={formData.monto} onChange={(e) => setFormData({ ...formData, monto: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-3.5 outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20 transition-all font-semibold text-lg text-slate-800" />
                 </div>
+                {bcvRate && formData.monto && (
+                  <p className="text-xs text-emerald-600 font-bold mt-1 text-right">≈ ${(parseFloat(formData.monto) / bcvRate).toFixed(2)} USD</p>
+                )}
               </div>
               <div className="pt-4 flex gap-3">
                 <button type="button" onClick={resetFlow} className="flex-1 py-3.5 rounded-xl border-2 border-slate-200 text-slate-600 font-bold hover:bg-slate-50 transition" disabled={loading}>Cancelar</button>
@@ -361,6 +412,12 @@ export default function Home() {
               <h3 className="text-lg font-bold text-brand-blue flex items-center gap-2">
                 <Receipt className="w-5 h-5"/> Mis Cargas ({myFacturas.length})
               </h3>
+              <button 
+                onClick={() => window.open(`/api/generar-reporte?start=${startDate}&end=${endDate}&email=${encodeURIComponent(session?.user?.email || "")}`, "_blank")}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-red text-white hover:bg-brand-darkred shadow-md transition-colors font-bold text-xs"
+              >
+                <FileText className="w-4 h-4" /> Exportar Word
+              </button>
             </div>
             
             <div className="flex gap-3 mb-5">
