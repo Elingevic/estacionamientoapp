@@ -28,8 +28,8 @@ export default function Home() {
     fecha: new Date().toLocaleDateString("en-CA", { timeZone: "America/Caracas" }),
     nro_factura: "",
     monto: "",
-    estacionamiento: "",
-    lugar: "",
+    estacionamiento: "Inversiones Parking 2043, CA",
+    lugar: "Av. Lazo Martin",
     tipo_vehiculo: "carro"
   });
 
@@ -176,18 +176,9 @@ export default function Home() {
       const fallbackFacturaMatch = textClean.match(/\b(000\d{4,7})\b/);
       let nro_factura = nroFacturaMatch ? nroFacturaMatch[1] : (fallbackFacturaMatch ? fallbackFacturaMatch[1] : "");
 
-      // Extraer Estacionamiento y Lugar (usualmente después del RIF)
-      let estacionamiento = "";
-      let lugar = "";
-      const rifIndex = lines.findIndex(l => l.toUpperCase().includes("RIF"));
-      if (rifIndex !== -1 && lines.length > rifIndex + 2) {
-         estacionamiento = lines[rifIndex + 1];
-         lugar = lines[rifIndex + 2];
-      } else {
-         const skipSeniat = lines.filter(l => !l.toUpperCase().includes("SENIAT") && !l.toUpperCase().includes("RIF"));
-         estacionamiento = skipSeniat[0] || "";
-         lugar = skipSeniat[1] || "";
-      }
+      // Asignar Estacionamiento y Lugar siempre a los valores predeterminados requeridos
+      let estacionamiento = "Inversiones Parking 2043, CA";
+      let lugar = "Av. Lazo Martin";
 
       // Buscar Total (la palabra TOTAL o usar el monto más alto como fallback)
       let montoStr = "";
@@ -308,7 +299,7 @@ export default function Home() {
   };
 
   const resetFlow = () => {
-    setFile(null); setPreview(null); setCompressedBlob(null); setFormData({ fecha: new Date().toLocaleDateString("en-CA", { timeZone: "America/Caracas" }), nro_factura: "", monto: "", estacionamiento: "", lugar: "", tipo_vehiculo: "carro" }); setStep("capture");
+    setFile(null); setPreview(null); setCompressedBlob(null); setFormData({ fecha: new Date().toLocaleDateString("en-CA", { timeZone: "America/Caracas" }), nro_factura: "", monto: "", estacionamiento: "Inversiones Parking 2043, CA", lugar: "Av. Lazo Martin", tipo_vehiculo: "carro" }); setStep("capture");
   };
 
   const isRrhh = session?.user?.email?.toLowerCase().includes("rrhh") || (session?.user as any)?.role === "rrhh";
