@@ -35,7 +35,6 @@ export default function Home() {
 
   const [myFacturas, setMyFacturas] = useState<any[]>([]);
   const [fetchingFacturas, setFetchingFacturas] = useState(false);
-  const [migrated, setMigrated] = useState(false);
 
   const [startDate, setStartDate] = useState(() => {
     const d = new Date(); d.setDate(d.getDate() - 7); return d.toISOString().split("T")[0];
@@ -71,8 +70,8 @@ export default function Home() {
     }
   }, [session, status, router, startDate, endDate, step]); // Se recarga al cambiar de paso (por ej. al subir una nueva)
 
-  const fetchMyFacturas = async () => {
-    setFetchingFacturas(true);
+  const fetchMyFacturas = async (silent = false) => {
+    if (!silent) setFetchingFacturas(true);
     try {
       const { data, error } = await supabase
         .from("facturas")
@@ -85,13 +84,14 @@ export default function Home() {
         setMyFacturas(data);
         
         // Auto-corrección de facturas antiguas
-        if (!migrated && bcvRate && bcvRate > 100) {
+        const isMigrated = typeof window !== "undefined" && sessionStorage.getItem("sude_migrated") === "true";
+        if (!isMigrated && bcvRate && bcvRate > 100) {
           const incorrectas = data.filter((f: any) => 
             (f.nro_factura === "00027330" && f.tipo_vehiculo !== "moto") ||
             (!f.tasa_usd || f.tasa_usd === 36.5 || (f.monto_usd && Math.abs(Number(f.monto_usd) - (Number(f.monto) / 36.5)) < 0.1))
           );
           if (incorrectas.length > 0) {
-            setMigrated(true);
+            sessionStorage.setItem("sude_migrated", "true");
             (async () => {
               for (const f of incorrectas) {
                 const updates: any = {};
@@ -112,7 +112,7 @@ export default function Home() {
                   await q;
                 }
               }
-              fetchMyFacturas();
+              fetchMyFacturas(true);
             })();
           }
         }
@@ -120,7 +120,7 @@ export default function Home() {
     } catch (e) {
       console.error(e);
     } finally {
-      setFetchingFacturas(false);
+      if (!silent) setFetchingFacturas(false);
     }
   };
 

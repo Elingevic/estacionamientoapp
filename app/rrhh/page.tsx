@@ -43,7 +43,6 @@ export default function RrhhDashboard() {
   const [bcvRate, setBcvRate] = useState<number>(587.40);
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [migrated, setMigrated] = useState(false);
 
   useEffect(() => {
     fetch("http://172.16.202.58:8000/api/rates/")
@@ -94,8 +93,8 @@ export default function RrhhDashboard() {
     }
   }, [status, startDate, endDate]);
 
-  const fetchFacturas = async () => {
-    setLoading(true);
+  const fetchFacturas = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const { data, error } = await supabase
         .from("facturas")
@@ -109,13 +108,14 @@ export default function RrhhDashboard() {
         setFacturas(data);
         
         // Auto-corrección de facturas antiguas
-        if (!migrated && bcvRate && bcvRate > 100) {
+        const isMigrated = typeof window !== "undefined" && sessionStorage.getItem("sude_migrated") === "true";
+        if (!isMigrated && bcvRate && bcvRate > 100) {
           const incorrectas = data.filter((f: any) => 
             (f.nro_factura === "00027330" && f.tipo_vehiculo !== "moto") ||
             (!f.tasa_usd || f.tasa_usd === 36.5 || (f.monto_usd && Math.abs(Number(f.monto_usd) - (Number(f.monto) / 36.5)) < 0.1))
           );
           if (incorrectas.length > 0) {
-            setMigrated(true);
+            sessionStorage.setItem("sude_migrated", "true");
             (async () => {
               for (const f of incorrectas) {
                 const updates: any = {};
@@ -136,7 +136,7 @@ export default function RrhhDashboard() {
                   await q;
                 }
               }
-              fetchFacturas();
+              fetchFacturas(true);
             })();
           }
         }
@@ -145,7 +145,7 @@ export default function RrhhDashboard() {
       console.error("Error fetching facturas:", error);
       alert("Error cargando la data.");
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 

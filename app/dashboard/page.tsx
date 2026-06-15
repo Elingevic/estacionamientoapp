@@ -18,7 +18,6 @@ export default function Dashboard() {
   const { data: session, status } = useSession();
   const [loading, setLoading] = useState(true);
   const [facturas, setFacturas] = useState<any[]>([]);
-  const [migrated, setMigrated] = useState(false);
 
   const [bcvRate, setBcvRate] = useState<number>(587.40);
 
@@ -47,8 +46,8 @@ export default function Dashboard() {
     }
   }, [status]);
 
-  const fetchData = async () => {
-    setLoading(true);
+  const fetchData = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const isRrhh = session?.user?.email?.toLowerCase().includes("rrhh") || (session?.user as any)?.role === "rrhh";
       let query = supabase.from("facturas").select("*");
@@ -63,13 +62,14 @@ export default function Dashboard() {
         setFacturas(data);
         
         // Auto-corrección de facturas antiguas
-        if (!migrated && bcvRate && bcvRate > 100) {
+        const isMigrated = typeof window !== "undefined" && sessionStorage.getItem("sude_migrated") === "true";
+        if (!isMigrated && bcvRate && bcvRate > 100) {
           const incorrectas = data.filter((f: any) => 
             (f.nro_factura === "00027330" && f.tipo_vehiculo !== "moto") ||
             (!f.tasa_usd || f.tasa_usd === 36.5 || (f.monto_usd && Math.abs(Number(f.monto_usd) - (Number(f.monto) / 36.5)) < 0.1))
           );
           if (incorrectas.length > 0) {
-            setMigrated(true);
+            sessionStorage.setItem("sude_migrated", "true");
             (async () => {
               for (const f of incorrectas) {
                 const updates: any = {};
@@ -90,7 +90,7 @@ export default function Dashboard() {
                   await q;
                 }
               }
-              fetchData();
+              fetchData(true);
             })();
           }
         }
@@ -98,7 +98,7 @@ export default function Dashboard() {
     } catch (e) {
       console.error(e);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
