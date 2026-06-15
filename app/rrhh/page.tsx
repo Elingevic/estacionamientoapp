@@ -192,6 +192,11 @@ export default function RrhhDashboard() {
     return <div className="min-h-screen bg-brand-blue flex items-center justify-center text-white"><Loader2 className="w-10 h-10 animate-spin" /></div>;
   }
 
+  if (status === "unauthenticated") {
+    if (typeof window !== "undefined") window.location.href = "/";
+    return <div className="min-h-screen bg-slate-50" />;
+  }
+
   if (!session || (session.user as any).role !== "rrhh") {
     return (
       <main className="min-h-screen bg-slate-50 flex items-center justify-center p-4 text-slate-800">

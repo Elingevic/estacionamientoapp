@@ -86,6 +86,11 @@ export default function Dashboard() {
     );
   }
 
+  if (status === "unauthenticated") {
+    if (typeof window !== "undefined") window.location.href = "/";
+    return <div className="min-h-screen bg-slate-50" />;
+  }
+
   if (!session) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -294,7 +299,8 @@ export default function Dashboard() {
                     <th className="px-4 py-3 font-bold text-slate-500 uppercase">Persona</th>
                     <th className="px-4 py-3 font-bold text-slate-500 uppercase text-center">Tickets</th>
                     <th className="px-4 py-3 font-bold text-slate-500 uppercase text-center">Carros / Motos</th>
-                    <th className="px-4 py-3 font-bold text-slate-500 uppercase text-right">Promedio (Bs. / USD)</th>
+                    <th className="px-4 py-3 font-bold text-slate-500 uppercase text-right">Promedio Bs.</th>
+                    <th className="px-4 py-3 font-bold text-slate-500 uppercase text-right">Promedio USD</th>
                     <th className="px-4 py-3 font-bold text-slate-500 uppercase text-right">Total Bs.</th>
                     <th className="px-4 py-3 font-bold text-slate-500 uppercase text-right">Total USD</th>
                   </tr>
@@ -321,13 +327,15 @@ export default function Dashboard() {
                           <span className="bg-slate-100 px-2.5 py-1 rounded-full text-xs font-bold">{data.tickets}</span>
                         </td>
                         <td className="px-4 py-3 text-center text-xs font-bold text-slate-600">
-                          <span className="text-brand-blue">{data.carros} 🚗</span>
+                          <span className="text-brand-blue">{data.carros}</span>
                           <span className="mx-1.5">/</span>
-                          <span className="text-brand-red">{data.motos} 🏍️</span>
+                          <span className="text-brand-red">{data.motos}</span>
                         </td>
                         <td className="px-4 py-3 text-right text-xs">
                           <p className="font-bold text-slate-700">Bs. {avgBs.toFixed(2)}</p>
-                          <p className="font-medium text-emerald-600">${avgUsd.toFixed(2)}</p>
+                        </td>
+                        <td className="px-4 py-3 text-right text-xs">
+                          <p className="font-bold text-emerald-600">${avgUsd.toFixed(2)}</p>
                         </td>
                         <td className="px-4 py-3 text-right font-bold text-brand-blue">Bs. {data.bs.toFixed(2)}</td>
                         <td className="px-4 py-3 text-right font-bold text-emerald-600">${data.usd.toFixed(2)}</td>
