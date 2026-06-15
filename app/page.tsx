@@ -21,7 +21,6 @@ export default function Home() {
   const [compressedBlob, setCompressedBlob] = useState<Blob | null>(null);
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState<"capture" | "review" | "success">("capture");
-  const [step, setStep] = useState<"capture" | "review" | "success">("capture");
   const [ocrProgress, setOcrProgress] = useState<string>("");
   const [bcvRate, setBcvRate] = useState<number | null>(null);
 
