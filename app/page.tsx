@@ -202,11 +202,19 @@ export default function Home() {
       const { error } = await supabase.from("facturas").insert([insertData]);
       
       if (error && error.message.includes("estacionamiento")) {
-        // Fallback si no existen las columnas
-        delete insertData.estacionamiento;
-        delete insertData.lugar;
-        const { error: fallbackError } = await supabase.from("facturas").insert([insertData]);
-        if (fallbackError) throw fallbackError;
+        // Podría ser que la columna se llame 'nombre_estacionamiento'
+        const altData = { ...insertData };
+        delete altData.estacionamiento;
+        altData.nombre_estacionamiento = formData.estacionamiento;
+        
+        const { error: altError } = await supabase.from("facturas").insert([altData]);
+        if (altError) {
+          // Fallback final si no existen las columnas en lo absoluto
+          delete altData.nombre_estacionamiento;
+          delete altData.lugar;
+          const { error: fallbackError } = await supabase.from("facturas").insert([altData]);
+          if (fallbackError) throw fallbackError;
+        }
       } else if (error) {
         throw error;
       }
