@@ -15,9 +15,20 @@ export async function GET() {
 
     const data = await response.json();
     
-    // Buscar la tasa del USD
-    const usdData = data.value?.find((item: any) => item.currency?.code === "USD");
-    
+    // Buscar la tasa del USD (el API retorna un array y currency como string)
+    let usdData = null;
+    if (Array.isArray(data)) {
+      usdData = data.find((item: any) => 
+        item.currency === "USD" || 
+        (typeof item.currency === "object" && item.currency?.code === "USD")
+      );
+    } else if (data && data.value && Array.isArray(data.value)) {
+      usdData = data.value.find((item: any) => 
+        item.currency === "USD" || 
+        (typeof item.currency === "object" && item.currency?.code === "USD")
+      );
+    }
+
     if (usdData && usdData.bd_venta_ask) {
       return NextResponse.json({ 
         success: true, 

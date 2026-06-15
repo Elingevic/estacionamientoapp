@@ -249,34 +249,54 @@ export default function Dashboard() {
         {/* Desglose por Persona */}
         {isRrhh && (
           <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
-            <h3 className="font-bold text-lg text-slate-800 mb-6 flex items-center gap-2"><Users className="w-5 h-5 text-brand-blue"/> Desglose Mensual por Persona</h3>
+            <h3 className="font-bold text-lg text-slate-800 mb-6 flex items-center gap-2"><Users className="w-5 h-5 text-brand-blue"/> Desglose por Persona</h3>
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm whitespace-nowrap">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
                     <th className="px-4 py-3 font-bold text-slate-500 uppercase">Persona</th>
                     <th className="px-4 py-3 font-bold text-slate-500 uppercase text-center">Tickets</th>
+                    <th className="px-4 py-3 font-bold text-slate-500 uppercase text-center">Carros / Motos</th>
+                    <th className="px-4 py-3 font-bold text-slate-500 uppercase text-right">Promedio (Bs. / USD)</th>
                     <th className="px-4 py-3 font-bold text-slate-500 uppercase text-right">Total Bs.</th>
                     <th className="px-4 py-3 font-bold text-slate-500 uppercase text-right">Total USD</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {Object.entries(facturas.reduce((acc, f) => {
-                    if (!acc[f.user_id]) acc[f.user_id] = { tickets: 0, bs: 0, usd: 0 };
+                    const isMoto = f.tipo_vehiculo === "moto";
+                    if (!acc[f.user_id]) acc[f.user_id] = { tickets: 0, bs: 0, usd: 0, carros: 0, motos: 0 };
                     acc[f.user_id].tickets += 1;
                     acc[f.user_id].bs += Number(f.monto);
                     acc[f.user_id].usd += (f.monto_usd ? Number(f.monto_usd) : Number(f.monto) / bcvRate);
+                    if (isMoto) acc[f.user_id].motos += 1;
+                    else acc[f.user_id].carros += 1;
                     return acc;
-                  }, {} as Record<string, {tickets: number, bs: number, usd: number}>))
+                  }, {} as Record<string, {tickets: number, bs: number, usd: number, carros: number, motos: number}>))
                   .sort((a: any, b: any) => b[1].bs - a[1].bs)
-                  .map(([user, data]: [string, any], idx) => (
-                    <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="px-4 py-3 font-bold text-slate-700">{user}</td>
-                      <td className="px-4 py-3 text-center text-slate-600 font-medium">{data.tickets}</td>
-                      <td className="px-4 py-3 text-right font-bold text-brand-blue">Bs. {data.bs.toFixed(2)}</td>
-                      <td className="px-4 py-3 text-right font-bold text-emerald-600">${data.usd.toFixed(2)}</td>
-                    </tr>
-                  ))}
+                  .map(([user, data]: [string, any], idx) => {
+                    const avgBs = data.bs / data.tickets;
+                    const avgUsd = data.usd / data.tickets;
+                    return (
+                      <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="px-4 py-3 font-bold text-slate-700">{user}</td>
+                        <td className="px-4 py-3 text-center text-slate-600 font-medium">
+                          <span className="bg-slate-100 px-2.5 py-1 rounded-full text-xs font-bold">{data.tickets}</span>
+                        </td>
+                        <td className="px-4 py-3 text-center text-xs font-bold text-slate-600">
+                          <span className="text-brand-blue">{data.carros} 🚗</span>
+                          <span className="mx-1.5">/</span>
+                          <span className="text-brand-red">{data.motos} 🏍️</span>
+                        </td>
+                        <td className="px-4 py-3 text-right text-xs">
+                          <p className="font-bold text-slate-700">Bs. {avgBs.toFixed(2)}</p>
+                          <p className="font-medium text-emerald-600">${avgUsd.toFixed(2)}</p>
+                        </td>
+                        <td className="px-4 py-3 text-right font-bold text-brand-blue">Bs. {data.bs.toFixed(2)}</td>
+                        <td className="px-4 py-3 text-right font-bold text-emerald-600">${data.usd.toFixed(2)}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

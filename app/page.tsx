@@ -159,13 +159,19 @@ export default function Home() {
          }
       }
 
+      let tipo_vehiculo = "carro";
+      if (textClean.toUpperCase().includes("MOTO")) {
+        tipo_vehiculo = "moto";
+      }
+
       setFormData(prev => ({ 
         ...prev, 
         fecha,
         nro_factura, 
         monto: montoStr,
         estacionamiento: estacionamiento,
-        lugar: lugar
+        lugar: lugar,
+        tipo_vehiculo
       }));
       setStep("review");
     } catch (error) {
@@ -260,6 +266,11 @@ export default function Home() {
   };
 
   const isRrhh = session?.user?.email?.toLowerCase().includes("rrhh") || (session?.user as any)?.role === "rrhh";
+
+  const myTotalMonto = myFacturas.reduce((sum, f) => sum + Number(f.monto), 0);
+  const myTotalMontoUsd = myFacturas.reduce((sum, f) => sum + (f.monto_usd ? Number(f.monto_usd) : Number(f.monto) / (bcvRate || 36.5)), 0);
+  const myTotalCarros = myFacturas.filter(f => f.tipo_vehiculo === "carro" || !f.tipo_vehiculo).length;
+  const myTotalMotos = myFacturas.filter(f => f.tipo_vehiculo === "moto").length;
 
   if (status === "loading" || (status === "authenticated" && isRrhh)) {
     return (
@@ -406,8 +417,8 @@ export default function Home() {
 
         {/* HISTORIAL Y REPORTES DEL EMPLEADO */}
         {step !== "review" && (
-          <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-xl">
-            <div className="flex justify-between items-center mb-5">
+          <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-xl space-y-5">
+            <div className="flex justify-between items-center">
               <h3 className="text-lg font-bold text-brand-blue flex items-center gap-2">
                 <Receipt className="w-5 h-5"/> Mis Cargas ({myFacturas.length})
               </h3>
@@ -419,7 +430,7 @@ export default function Home() {
               </button>
             </div>
             
-            <div className="flex gap-3 mb-5">
+            <div className="flex gap-3">
               <div className="w-1/2">
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Desde</label>
                 <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-brand-blue font-medium text-slate-700 transition-all" />
@@ -429,6 +440,28 @@ export default function Home() {
                 <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-brand-blue font-medium text-slate-700 transition-all" />
               </div>
             </div>
+
+            {/* MINI DASHBOARD PERSONAL */}
+            {myFacturas.length > 0 && (
+              <div className="grid grid-cols-2 gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                <div className="space-y-1 border-r border-slate-200 pr-2">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Consumido</p>
+                  <p className="text-base font-extrabold text-brand-blue">Bs. {myTotalMonto.toFixed(2)}</p>
+                  <p className="text-xs font-bold text-emerald-600">≈ ${myTotalMontoUsd.toFixed(2)} USD</p>
+                </div>
+                <div className="space-y-1 pl-2">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Vehículos</p>
+                  <div className="flex flex-col gap-0.5 mt-0.5">
+                    <span className="text-xs font-semibold text-slate-600 flex items-center gap-1.5">
+                      <Car className="w-3.5 h-3.5 text-brand-blue" /> {myTotalCarros} Carros
+                    </span>
+                    <span className="text-xs font-semibold text-slate-600 flex items-center gap-1.5">
+                      <Bike className="w-3.5 h-3.5 text-brand-red" /> {myTotalMotos} Motos
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
             
             {fetchingFacturas ? (
               <div className="text-center py-6"><Loader2 className="w-8 h-8 animate-spin text-brand-blue mx-auto"/></div>
@@ -439,18 +472,32 @@ export default function Home() {
               </div>
             ) : (
               <div className="space-y-3 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
-                {myFacturas.map((f, i) => (
-                  <div key={i} className="flex justify-between items-center bg-slate-50 p-4 rounded-2xl border border-slate-100 hover:border-slate-200 transition-colors group">
-                    <div>
-                      <p className="text-xs font-bold text-slate-800">{new Date(f.fecha).toLocaleDateString("es-ES")}</p>
-                      <p className="text-xs text-slate-500 font-mono mt-0.5">#{f.nro_factura}</p>
+                {myFacturas.map((f, i) => {
+                  const isMoto = f.tipo_vehiculo === "moto";
+                  const itemUsd = f.monto_usd ? Number(f.monto_usd) : Number(f.monto) / (bcvRate || 36.5);
+                  return (
+                    <div key={i} className="flex justify-between items-center bg-slate-50 p-4 rounded-2xl border border-slate-100 hover:border-slate-200 transition-colors group">
+                      <div className="flex items-center gap-3">
+                        <div className={`p-2.5 rounded-xl ${isMoto ? 'bg-red-100 text-brand-red' : 'bg-blue-100 text-brand-blue'}`}>
+                          {isMoto ? <Bike className="w-4 h-4" /> : <Car className="w-4 h-4" />}
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-slate-800">{new Date(f.fecha).toLocaleDateString("es-ES")}</p>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className="text-xs text-slate-500 font-mono">#{f.nro_factura}</span>
+                            <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-full uppercase ${isMoto ? 'bg-red-50 text-brand-red border border-red-200' : 'bg-blue-50 text-brand-blue border border-blue-200'}`}>
+                              {isMoto ? "Moto" : "Carro"}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-bold text-slate-800">Bs. {Number(f.monto).toFixed(2)}</p>
+                        <p className="text-xs font-bold text-emerald-600">≈ ${itemUsd.toFixed(2)}</p>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-sm font-bold text-emerald-600">Bs. {Number(f.monto).toFixed(2)}</p>
-                      <span className="text-[10px] font-bold text-brand-blue bg-brand-blue/10 px-2 py-0.5 rounded-full mt-1 inline-block">Procesado</span>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
