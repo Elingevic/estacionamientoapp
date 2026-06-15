@@ -55,7 +55,7 @@ export async function GET(request: Request) {
       maximumFractionDigits: 2,
     });
 
-    const uniqueFacturas = [];
+    const uniqueFacturas: any[] = [];
     const seenFacturas = new Set();
     facturas?.forEach(f => {
       const key = `${f.fecha}-${f.nro_factura}`;
