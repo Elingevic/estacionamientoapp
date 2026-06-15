@@ -82,40 +82,8 @@ export default function Home() {
         .order("fecha", { ascending: false });
       if (data) {
         setMyFacturas(data);
-        
-        // Auto-corrección de facturas antiguas
-        const isMigrated = typeof window !== "undefined" && sessionStorage.getItem("sude_migrated") === "true";
-        if (!isMigrated && bcvRate && bcvRate > 100) {
-          const incorrectas = data.filter((f: any) => 
-            (f.nro_factura === "00027330" && f.tipo_vehiculo !== "moto") ||
-            (!f.tasa_usd || f.tasa_usd === 36.5 || (f.monto_usd && Math.abs(Number(f.monto_usd) - (Number(f.monto) / 36.5)) < 0.1))
-          );
-          if (incorrectas.length > 0) {
-            sessionStorage.setItem("sude_migrated", "true");
-            (async () => {
-              for (const f of incorrectas) {
-                const updates: any = {};
-                if (f.nro_factura === "00027330" && f.tipo_vehiculo !== "moto") {
-                  updates.tipo_vehiculo = "moto";
-                }
-                if (!f.tasa_usd || f.tasa_usd === 36.5) {
-                  updates.tasa_usd = bcvRate;
-                  updates.monto_usd = Number(f.monto) / bcvRate;
-                }
-                if (Object.keys(updates).length > 0) {
-                  let q = supabase.from("facturas").update(updates);
-                  if (f.id) {
-                    q = q.eq("id", f.id);
-                  } else {
-                    q = q.eq("nro_factura", f.nro_factura).eq("user_id", f.user_id);
-                  }
-                  await q;
-                }
-              }
-              fetchMyFacturas(true);
-            })();
-          }
-        }
+        // Auto-corrección removida para evitar errores de schema cache
+        // Calculamos todo al vuelo en la UI.
       }
     } catch (e) {
       console.error(e);
@@ -269,38 +237,31 @@ export default function Home() {
         dataToInsert.monto_usd = (parseFloat(formData.monto) || 0) / bcvRate;
       }
 
-      let { error } = await supabase.from("facturas").insert([dataToInsert]);
-      
-      if (error && (error.message.includes("monto_usd") || error.message.includes("tasa_usd"))) {
-        delete dataToInsert.monto_usd;
-        delete dataToInsert.tasa_usd;
-        const res0 = await supabase.from("facturas").insert([dataToInsert]);
-        error = res0.error;
-      }
-      
-      if (error && error.message.includes("estacionamiento")) {
-        delete dataToInsert.estacionamiento;
-        dataToInsert.nombre_estacionamiento = formData.estacionamiento;
-        const res2 = await supabase.from("facturas").insert([dataToInsert]);
-        error = res2.error;
-        if (error && error.message.includes("nombre_estacionamiento")) {
-          delete dataToInsert.nombre_estacionamiento;
-          const res3 = await supabase.from("facturas").insert([dataToInsert]);
-          error = res3.error;
+      const tryInsert = async (data: any, attempt = 1): Promise<any> => {
+        let res = await supabase.from("facturas").insert([data]);
+        if (res.error && attempt <= 3) {
+          const errStr = JSON.stringify(res.error).toLowerCase();
+          let needsRetry = false;
+          if (errStr.includes("monto_usd") || errStr.includes("tasa_usd")) {
+            delete data.monto_usd; delete data.tasa_usd; needsRetry = true;
+          }
+          if (errStr.includes("tipo_vehiculo")) {
+            delete data.tipo_vehiculo; needsRetry = true;
+          }
+          if (errStr.includes("estacionamiento") && !errStr.includes("nombre_estacionamiento")) {
+            delete data.estacionamiento; data.nombre_estacionamiento = formData.estacionamiento; needsRetry = true;
+          } else if (errStr.includes("nombre_estacionamiento")) {
+            delete data.nombre_estacionamiento; needsRetry = true;
+          }
+          if (errStr.includes("lugar")) {
+            delete data.lugar; needsRetry = true;
+          }
+          if (needsRetry) return tryInsert(data, attempt + 1);
         }
-      }
+        return res;
+      };
 
-      if (error && error.message.includes("tipo_vehiculo")) {
-        delete dataToInsert.tipo_vehiculo;
-        const res4 = await supabase.from("facturas").insert([dataToInsert]);
-        error = res4.error;
-      }
-      
-      if (error && error.message.includes("lugar")) {
-        delete dataToInsert.lugar;
-        const res5 = await supabase.from("facturas").insert([dataToInsert]);
-        error = res5.error;
-      }
+      const { error } = await tryInsert(dataToInsert);
 
       if (error) {
         throw error;

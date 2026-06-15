@@ -55,19 +55,26 @@ export async function GET(request: Request) {
       maximumFractionDigits: 2,
     });
 
-    let previousDate = "";
-    const facturasFormat = facturas?.map((f) => {
+    const uniqueFacturas = [];
+    const seenFacturas = new Set();
+    facturas?.forEach(f => {
+      const key = `${f.fecha}-${f.nro_factura}`;
+      if (!seenFacturas.has(key)) {
+        seenFacturas.add(key);
+        uniqueFacturas.push(f);
+      }
+    });
+
+    const facturasFormat = uniqueFacturas.map((f) => {
       total_monto += Number(f.monto);
       
       const [y, m, d] = f.fecha.split("-");
       const currentFecha = `${d}/${m}/${y}`;
-      const fechaToDisplay = currentFecha === previousDate ? "" : currentFecha;
-      previousDate = currentFecha;
 
       return {
         ...f,
         monto: `Bs. ${numberFormat.format(Number(f.monto))}`,
-        fecha: fechaToDisplay,
+        fecha: currentFecha,
         // Añadimos datos más cortos para que la tabla en Word no se desborde
         empleado: f.user_id,
         nombre_estacionamiento: f.nombre_estacionamiento || f.estacionamiento || "No especificado",

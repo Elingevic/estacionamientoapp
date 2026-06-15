@@ -68,39 +68,8 @@ export default function Dashboard() {
       if (data) {
         setFacturas(data);
         
-        // Auto-corrección de facturas antiguas
-        const isMigrated = typeof window !== "undefined" && sessionStorage.getItem("sude_migrated") === "true";
-        if (!isMigrated && bcvRate && bcvRate > 100) {
-          const incorrectas = data.filter((f: any) => 
-            (f.nro_factura === "00027330" && f.tipo_vehiculo !== "moto") ||
-            (!f.tasa_usd || f.tasa_usd === 36.5 || (f.monto_usd && Math.abs(Number(f.monto_usd) - (Number(f.monto) / 36.5)) < 0.1))
-          );
-          if (incorrectas.length > 0) {
-            sessionStorage.setItem("sude_migrated", "true");
-            (async () => {
-              for (const f of incorrectas) {
-                const updates: any = {};
-                if (f.nro_factura === "00027330" && f.tipo_vehiculo !== "moto") {
-                  updates.tipo_vehiculo = "moto";
-                }
-                if (!f.tasa_usd || f.tasa_usd === 36.5) {
-                  updates.tasa_usd = bcvRate;
-                  updates.monto_usd = Number(f.monto) / bcvRate;
-                }
-                if (Object.keys(updates).length > 0) {
-                  let q = supabase.from("facturas").update(updates);
-                  if (f.id) {
-                    q = q.eq("id", f.id);
-                  } else {
-                    q = q.eq("nro_factura", f.nro_factura).eq("user_id", f.user_id);
-                  }
-                  await q;
-                }
-              }
-              fetchData(true);
-            })();
-          }
-        }
+        // Auto-corrección removida para evitar errores de schema cache
+        // Calculamos todo al vuelo en la UI.
       }
     } catch (e) {
       console.error(e);
