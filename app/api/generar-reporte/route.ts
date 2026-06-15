@@ -99,6 +99,18 @@ export async function GET(request: Request) {
 
     const correlativo = `DOC-${Math.floor(Date.now() / 1000).toString().slice(-6)}`;
 
+    const facturaIds = uniqueFacturas.map((f: any) => f.id).filter(id => id);
+    if (facturaIds.length > 0) {
+      const { error: updateError } = await supabase
+        .from("facturas")
+        .update({ correlativo_reporte: correlativo })
+        .in("id", facturaIds);
+      
+      if (updateError) {
+        console.error("Error guardando el correlativo en BD (¿falta la columna?):", updateError);
+      }
+    }
+
     // Inyectamos las variables dinámicas
     doc.render({
       correlativo: correlativo,
