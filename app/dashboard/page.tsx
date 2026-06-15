@@ -25,6 +25,28 @@ export default function Dashboard() {
   const [endDate, setEndDate] = useState(() => new Date().toISOString().split("T")[0]);
 
   const [bcvRate, setBcvRate] = useState<number>(587.40);
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const setQuickFilter = (type: 'semana' | 'mes' | 'todo') => {
+    const d = new Date();
+    if (type === 'semana') {
+      const day = d.getDay() || 7;
+      const monday = new Date(d);
+      monday.setDate(d.getDate() - day + 1);
+      const sunday = new Date(monday);
+      sunday.setDate(monday.getDate() + 6);
+      setStartDate(monday.toISOString().split("T")[0]);
+      setEndDate(sunday.toISOString().split("T")[0]);
+    } else if (type === 'mes') {
+      const start = new Date(d.getFullYear(), d.getMonth(), 1);
+      const end = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+      setStartDate(start.toISOString().split("T")[0]);
+      setEndDate(end.toISOString().split("T")[0]);
+    } else if (type === 'todo') {
+      setStartDate("2020-01-01");
+      setEndDate(d.toISOString().split("T")[0]);
+    }
+  };
 
   useEffect(() => {
     fetch("http://172.16.202.58:8000/api/rates/")
@@ -101,25 +123,30 @@ export default function Dashboard() {
 
   const isRrhh = session?.user?.email?.toLowerCase().includes("rrhh") || (session?.user as any)?.role === "rrhh";
 
+  const filteredFacturas = facturas.filter(f => 
+    f.user_id?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    f.nro_factura?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   // Estadísticas
-  const totalFacturas = facturas.length;
-  const totalMonto = facturas.reduce((sum, f) => sum + Number(f.monto), 0);
-  const totalMontoUsd = facturas.reduce((sum, f) => sum + (f.monto_usd ? Number(f.monto_usd) : Number(f.monto) / bcvRate), 0);
+  const totalFacturas = filteredFacturas.length;
+  const totalMonto = filteredFacturas.reduce((sum, f) => sum + Number(f.monto), 0);
+  const totalMontoUsd = filteredFacturas.reduce((sum, f) => sum + (f.monto_usd ? Number(f.monto_usd) : Number(f.monto) / bcvRate), 0);
   
-  const totalCarros = facturas.filter(f => f.tipo_vehiculo === "carro" || !f.tipo_vehiculo).length;
-  const totalMotos = facturas.filter(f => f.tipo_vehiculo === "moto").length;
+  const totalCarros = filteredFacturas.filter(f => f.tipo_vehiculo === "carro" || !f.tipo_vehiculo).length;
+  const totalMotos = filteredFacturas.filter(f => f.tipo_vehiculo === "moto").length;
 
-  const montoCarros = facturas.filter(f => f.tipo_vehiculo === "carro" || !f.tipo_vehiculo).reduce((sum, f) => sum + Number(f.monto), 0);
-  const montoMotos = facturas.filter(f => f.tipo_vehiculo === "moto").reduce((sum, f) => sum + Number(f.monto), 0);
+  const montoCarros = filteredFacturas.filter(f => f.tipo_vehiculo === "carro" || !f.tipo_vehiculo).reduce((sum, f) => sum + Number(f.monto), 0);
+  const montoMotos = filteredFacturas.filter(f => f.tipo_vehiculo === "moto").reduce((sum, f) => sum + Number(f.monto), 0);
   
-  const montoCarrosUsd = facturas.filter(f => f.tipo_vehiculo === "carro" || !f.tipo_vehiculo).reduce((sum, f) => sum + (f.monto_usd ? Number(f.monto_usd) : Number(f.monto) / bcvRate), 0);
-  const montoMotosUsd = facturas.filter(f => f.tipo_vehiculo === "moto").reduce((sum, f) => sum + (f.monto_usd ? Number(f.monto_usd) : Number(f.monto) / bcvRate), 0);
+  const montoCarrosUsd = filteredFacturas.filter(f => f.tipo_vehiculo === "carro" || !f.tipo_vehiculo).reduce((sum, f) => sum + (f.monto_usd ? Number(f.monto_usd) : Number(f.monto) / bcvRate), 0);
+  const montoMotosUsd = filteredFacturas.filter(f => f.tipo_vehiculo === "moto").reduce((sum, f) => sum + (f.monto_usd ? Number(f.monto_usd) : Number(f.monto) / bcvRate), 0);
 
-  const totalPersonas = new Set(facturas.map(f => f.user_id)).size;
+  const totalPersonas = new Set(filteredFacturas.map(f => f.user_id)).size;
 
   // Gastos mensuales para gráfica
   const mesesNombres = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
-  const facturasPorMes = facturas.reduce((acc, f) => {
+  const facturasPorMes = filteredFacturas.reduce((acc, f) => {
     const [y, m, d] = f.fecha.split("-");
     const mesIdx = Number(m) - 1;
     if (!acc[mesIdx]) acc[mesIdx] = { montoBs: 0, montoUsd: 0 };
@@ -157,14 +184,27 @@ export default function Dashboard() {
               <p className="text-slate-500 font-medium">Estadísticas de gastos de estacionamiento</p>
             </div>
           </div>
-          <div className="flex gap-4 items-center">
-            <div className="flex flex-col">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Desde</label>
-              <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm font-bold text-slate-600 outline-none focus:border-brand-blue" />
+          <div className="flex flex-col gap-2 w-full md:w-auto">
+            <div className="flex gap-2 self-end">
+              <button onClick={() => setQuickFilter('semana')} className="text-xs px-3 py-1 bg-slate-100 hover:bg-brand-blue hover:text-white rounded-lg font-bold text-slate-600 transition-colors">Semana</button>
+              <button onClick={() => setQuickFilter('mes')} className="text-xs px-3 py-1 bg-slate-100 hover:bg-brand-blue hover:text-white rounded-lg font-bold text-slate-600 transition-colors">Mes</button>
+              <button onClick={() => setQuickFilter('todo')} className="text-xs px-3 py-1 bg-slate-100 hover:bg-brand-blue hover:text-white rounded-lg font-bold text-slate-600 transition-colors">Todo</button>
             </div>
-            <div className="flex flex-col">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Hasta</label>
-              <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm font-bold text-slate-600 outline-none focus:border-brand-blue" />
+            <div className="flex flex-wrap gap-4 items-center justify-end">
+              {isRrhh && (
+                <div className="flex flex-col">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Buscar</label>
+                  <input type="text" placeholder="Correo o Factura" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm font-bold text-slate-600 outline-none focus:border-brand-blue w-full sm:w-48" />
+                </div>
+              )}
+              <div className="flex flex-col">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Desde</label>
+                <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm font-bold text-slate-600 outline-none focus:border-brand-blue" />
+              </div>
+              <div className="flex flex-col">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Hasta</label>
+                <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm font-bold text-slate-600 outline-none focus:border-brand-blue" />
+              </div>
             </div>
           </div>
         </header>
@@ -312,7 +352,7 @@ export default function Dashboard() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {Object.entries(facturas.reduce((acc, f) => {
+                  {Object.entries(filteredFacturas.reduce((acc, f) => {
                     const isMoto = f.tipo_vehiculo === "moto";
                     if (!acc[f.user_id]) acc[f.user_id] = { tickets: 0, bs: 0, usd: 0, carros: 0, motos: 0 };
                     acc[f.user_id].tickets += 1;

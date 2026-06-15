@@ -97,8 +97,11 @@ export async function GET(request: Request) {
       linebreaks: true,
     });
 
+    const correlativo = `DOC-${Math.floor(Date.now() / 1000).toString().slice(-6)}`;
+
     // Inyectamos las variables dinámicas
     doc.render({
+      correlativo: correlativo,
       facturas: facturasFormat,
       total_monto: `Bs. ${numberFormat.format(total_monto)}`,
       fecha_generacion: new Date().toLocaleDateString("es-ES", { timeZone: "America/Caracas" }),

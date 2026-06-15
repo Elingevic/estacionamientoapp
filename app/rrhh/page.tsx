@@ -46,6 +46,10 @@ export default function RrhhDashboard() {
 
   const [searchTerm, setSearchTerm] = useState("");
 
+  const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [exportType, setExportType] = useState<"general" | "individual">("general");
+  const [exportEmployee, setExportEmployee] = useState<string>("");
+
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingFactura) return;
@@ -202,8 +206,18 @@ export default function RrhhDashboard() {
   const promedioTicket = totalTickets > 0 ? totalMonto / totalTickets : 0;
   const promedioTicketUsd = totalTickets > 0 ? totalMontoUsd / totalTickets : 0;
 
-  const exportToExcel = () => {
-    const dataSource = selectedEmployee ? facturasPorEmpleado[selectedEmployee] : filteredFacturas;
+  const triggerExportModal = () => {
+    setExportType(selectedEmployee ? "individual" : "general");
+    setExportEmployee(selectedEmployee || (listaEmpleados[0]?.email || ""));
+    setExportModalOpen(true);
+  };
+
+  const handleExportConfirm = () => {
+    let dataSource = filteredFacturas;
+    if (exportType === "individual") {
+      dataSource = facturasPorEmpleado[exportEmployee] || [];
+    }
+
     const dataToExport = dataSource.map((f: any) => ({
       "Fecha Escaneo": f.fecha,
       "Empleado (SSO)": f.user_id,
@@ -216,7 +230,8 @@ export default function RrhhDashboard() {
     const worksheet = XLSX.utils.json_to_sheet(dataToExport);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Facturas");
-    XLSX.writeFile(workbook, `Consolidado_Nomina_${startDate}_${endDate}.xlsx`);
+    XLSX.writeFile(workbook, `Consolidado_Nomina_${exportType}_${startDate}_${endDate}.xlsx`);
+    setExportModalOpen(false);
   };
 
   if (status === "loading") {
@@ -264,7 +279,7 @@ export default function RrhhDashboard() {
           <button onClick={() => signOut()} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-xl border-2 border-slate-200 text-slate-600 font-bold hover:bg-slate-50 transition-all">
             <LogOut className="w-5 h-5" /> Cerrar Sesión
           </button>
-          <button onClick={exportToExcel} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-lg shadow-emerald-600/30 transition-all">
+          <button onClick={triggerExportModal} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-lg shadow-emerald-600/30 transition-all">
             <Download className="w-5 h-5" /> Exportar Nómina
           </button>
         </div>
@@ -527,6 +542,45 @@ export default function RrhhDashboard() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL PARA EXPORTAR */}
+      {exportModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md">
+          <div className="relative max-w-sm w-full bg-white rounded-3xl p-6 shadow-2xl border border-slate-100" onClick={e => e.stopPropagation()}>
+            <h3 className="text-xl font-bold text-brand-blue mb-4 flex items-center gap-2">
+              <Download className="w-5 h-5" /> Opciones de Exportación
+            </h3>
+            
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tipo de Exportación</label>
+                <select value={exportType} onChange={e => setExportType(e.target.value as any)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-brand-blue text-sm font-medium">
+                  <option value="general">General (Todos los registros)</option>
+                  <option value="individual">Individual (Un empleado)</option>
+                </select>
+              </div>
+
+              {exportType === "individual" && (
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Seleccionar Empleado</label>
+                  <select value={exportEmployee} onChange={e => setExportEmployee(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-brand-blue text-sm font-medium">
+                    {listaEmpleados.map(e => (
+                      <option key={e.email} value={e.email}>{e.email}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              
+              <div className="pt-4 flex gap-2">
+                <button type="button" onClick={() => setExportModalOpen(false)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold hover:bg-slate-50 text-sm transition-colors">Cancelar</button>
+                <button type="button" onClick={handleExportConfirm} className="flex-1 py-2.5 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-700 shadow-md text-sm transition-colors">
+                  Descargar Excel
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
