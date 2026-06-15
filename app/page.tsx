@@ -268,6 +268,7 @@ export default function Home() {
         user_id: session.user.email,
         image_url: imageUrl,
         estacionamiento: formData.estacionamiento,
+        nombre_estacionamiento: formData.estacionamiento,
         lugar: formData.lugar,
         tipo_vehiculo: formData.tipo_vehiculo
       };
@@ -287,14 +288,6 @@ export default function Home() {
           }
           if (errStr.includes("tipo_vehiculo")) {
             delete data.tipo_vehiculo; needsRetry = true;
-          }
-          if (errStr.includes("estacionamiento") && !errStr.includes("nombre_estacionamiento")) {
-            delete data.estacionamiento; data.nombre_estacionamiento = formData.estacionamiento; needsRetry = true;
-          } else if (errStr.includes("nombre_estacionamiento")) {
-            delete data.nombre_estacionamiento; needsRetry = true;
-          }
-          if (errStr.includes("lugar")) {
-            delete data.lugar; needsRetry = true;
           }
           if (needsRetry) return tryInsert(data, attempt + 1);
         }
@@ -630,9 +623,6 @@ export default function Home() {
           </div>
         </div>
       )}
-    </main>
-  );
-}>
     </main>
   );
 }

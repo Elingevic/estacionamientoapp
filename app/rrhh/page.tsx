@@ -219,6 +219,8 @@ export default function RrhhDashboard() {
       "Fecha Escaneo": f.fecha,
       "Empleado (SSO)": f.user_id,
       "Nro. Factura": f.nro_factura,
+      "Estacionamiento": f.nombre_estacionamiento || f.estacionamiento || "Sin nombre",
+      "Lugar": f.lugar || "Sin lugar",
       "Monto": Number(f.monto),
     }));
 
