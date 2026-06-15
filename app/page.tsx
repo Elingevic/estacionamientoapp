@@ -537,10 +537,10 @@ export default function Home() {
                           </div>
                           <div className="mt-1 space-y-0.5">
                             <p className="text-xs text-slate-700 font-semibold flex items-center gap-1">
-                              🏨 {f.nombre_estacionamiento || f.estacionamiento || "Sin nombre"}
+                              {f.nombre_estacionamiento || f.estacionamiento || "Sin nombre"}
                             </p>
                             <p className="text-[11px] text-slate-400 font-medium flex items-center gap-1">
-                              📍 {f.lugar || "Sin lugar"}
+                              {f.lugar || "Sin lugar"}
                             </p>
                           </div>
                         </div>
@@ -550,12 +550,6 @@ export default function Home() {
                           <p className="text-sm font-bold text-slate-800">Bs. {Number(f.monto).toFixed(2)}</p>
                           <p className="text-xs font-bold text-emerald-600">≈ ${itemUsd.toFixed(2)}</p>
                         </div>
-                        <button
-                          onClick={() => setEditingFactura(f)}
-                          className="mt-2 text-xs font-bold text-brand-blue hover:text-brand-red flex items-center gap-1 bg-slate-100 px-2 py-1 rounded-lg hover:bg-slate-200 transition-colors"
-                        >
-                          ✏️ Editar
-                        </button>
                       </div>
                     </div>
                   );
@@ -573,7 +567,7 @@ export default function Home() {
           <div className="relative max-w-md w-full bg-white rounded-3xl p-6 shadow-2xl border border-slate-100" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl font-bold text-brand-blue flex items-center gap-2">
-                ✏️ Editar Registro
+                Editar Registro
               </h3>
               <button onClick={() => setEditingFactura(null)} className="p-2 text-slate-400 hover:text-slate-600 rounded-lg">
                 ✕

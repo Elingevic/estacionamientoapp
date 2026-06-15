@@ -399,8 +399,8 @@ export default function RrhhDashboard() {
                              ) : (
                                <span className="inline-flex items-center gap-1 text-[10px] bg-blue-100 text-brand-blue px-2 py-0.5 rounded-full font-bold mt-1 w-max"><Car className="w-3 h-3"/> Carro</span>
                              )}
-                             <span className="text-xs font-semibold text-slate-700 mt-1">🏨 {f.nombre_estacionamiento || f.estacionamiento || "Sin nombre"}</span>
-                             <span className="text-[11px] text-slate-400">📍 {f.lugar || "Sin lugar"}</span>
+                             <span className="text-xs font-semibold text-slate-700 mt-1">{f.nombre_estacionamiento || f.estacionamiento || "Sin nombre"}</span>
+                             <span className="text-[11px] text-slate-400">{f.lugar || "Sin lugar"}</span>
                            </div>
                         </td>
                         <td className="px-6 py-4 font-mono font-medium text-slate-500">{f.nro_factura}</td>
@@ -419,12 +419,6 @@ export default function RrhhDashboard() {
                           ) : (
                             <span className="text-xs text-slate-400 font-medium italic">Sin evidencia</span>
                           )}
-                          <button 
-                            onClick={() => setEditingFactura(f)}
-                            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 transition-colors font-bold text-xs"
-                          >
-                            ✏️ Editar
-                          </button>
                         </td>
                       </tr>
                     ))
@@ -494,7 +488,7 @@ export default function RrhhDashboard() {
           <div className="relative max-w-md w-full bg-white rounded-3xl p-6 shadow-2xl border border-slate-100" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl font-bold text-brand-blue flex items-center gap-2">
-                ✏️ Editar Registro (RRHH)
+                Editar Registro (RRHH)
               </h3>
               <button onClick={() => setEditingFactura(null)} className="p-2 text-slate-400 hover:text-slate-600 rounded-lg">
                 ✕
