@@ -53,7 +53,9 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (status === "authenticated" && (session?.user as any)?.role === "rrhh") {
+    if (status === "unauthenticated") {
+      signIn("keycloak");
+    } else if (status === "authenticated" && (session?.user as any)?.role === "rrhh") {
       router.push("/rrhh");
     } else if (session?.user?.email) {
       fetchMyFacturas();
@@ -92,8 +94,7 @@ export default function Home() {
         fecha: editingFactura.fecha,
         nro_factura: editingFactura.nro_factura,
         monto: montoVal,
-        estacionamiento: editingFactura.estacionamiento || "",
-        nombre_estacionamiento: editingFactura.estacionamiento || "",
+        nombre_estacionamiento: editingFactura.estacionamiento || editingFactura.nombre_estacionamiento || "",
         lugar: editingFactura.lugar || "",
         tipo_vehiculo: editingFactura.tipo_vehiculo
       };
@@ -246,7 +247,6 @@ export default function Home() {
         monto: parseFloat(formData.monto) || 0,
         user_id: session.user.email,
         image_url: imageUrl,
-        estacionamiento: formData.estacionamiento,
         nombre_estacionamiento: formData.estacionamiento,
         lugar: formData.lugar,
         tipo_vehiculo: formData.tipo_vehiculo
@@ -297,33 +297,13 @@ export default function Home() {
   const myTotalCarros = myFacturas.filter(f => f.tipo_vehiculo === "carro" || !f.tipo_vehiculo).length;
   const myTotalMotos = myFacturas.filter(f => f.tipo_vehiculo === "moto").length;
 
-  if (status === "loading" || (status === "authenticated" && isRrhh)) {
+  if (status === "loading" || status === "unauthenticated" || (status === "authenticated" && isRrhh)) {
     return (
       <div className="min-h-screen bg-brand-blue flex flex-col items-center justify-center text-white">
         <Loader2 className="w-10 h-10 animate-spin mb-4" />
+        {status === "unauthenticated" && <p className="font-medium animate-pulse text-blue-200">Conectando con SUDEASEG SSO...</p>}
         {isRrhh && <p className="font-medium animate-pulse text-blue-200">Ingresando a Panel de Recursos Humanos...</p>}
       </div>
-    );
-  }
-
-  if (!session) {
-    return (
-      <main className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-        <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-3xl shadow-2xl border border-slate-100 text-center">
-          <div className="flex justify-center mb-6">
-            <div className="bg-brand-blue p-4 rounded-2xl shadow-lg">
-              <Building2 className="w-12 h-12 text-white" />
-            </div>
-          </div>
-          <div>
-            <h1 className="text-3xl font-extrabold text-brand-blue">SudeParking</h1>
-            <p className="text-slate-500 mt-2 font-medium">Plataforma Corporativa</p>
-          </div>
-          <button onClick={() => signIn()} className="w-full py-3.5 rounded-xl bg-brand-red hover:bg-brand-darkred text-white font-semibold text-lg shadow-lg shadow-brand-red/30 transition-all active:scale-95">
-            Iniciar Sesión
-          </button>
-        </div>
-      </main>
     );
   }
 

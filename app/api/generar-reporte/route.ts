@@ -112,15 +112,19 @@ export async function GET(request: Request) {
     }
 
     // Inyectamos las variables dinámicas
+    const userName = session.user.name || `${(session.user as any).given_name || ''} ${(session.user as any).family_name || ''}`.trim() || session.user.email;
+    const userCedula = (session.user as any).cedula || "N/A (SSO)";
+    const userCargo = (session.user as any).cargo || "Empleado";
+
     doc.render({
       correlativo: correlativo,
       facturas: facturasFormat,
       total_monto: `Bs. ${numberFormat.format(total_monto)}`,
       fecha_generacion: new Date().toLocaleDateString("es-ES", { timeZone: "America/Caracas" }),
-      // Si es RRHH generando el reporte global, ponemos RRHH. Si no, el nombre del empleado.
-      nombres: isRrhh ? (emailFilter || "Consolidado RRHH") : session.user.name || session.user.email,
-      cedula: "N/A (SSO)",
-      cargo: isRrhh ? "Departamento de Recursos Humanos" : "Empleado"
+      // Si es RRHH generando el reporte global, indicamos RRHH o la busqueda. Si no, usamos el nombre real.
+      nombres: isRrhh && !emailFilter ? "Consolidado RRHH" : userName,
+      cedula: isRrhh && !emailFilter ? "N/A" : userCedula,
+      cargo: isRrhh && !emailFilter ? "Departamento de Recursos Humanos" : userCargo
     });
 
     const buf = doc.getZip().generate({
