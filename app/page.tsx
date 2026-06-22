@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useSession, signIn, signOut } from "next-auth/react";
 import { createClient } from "@supabase/supabase-js";
 import Tesseract from "tesseract.js";
-import { Camera, FileText, Loader2, CheckCircle2, UploadCloud, LogOut, Calendar, Users, Building2, Receipt, Car, Bike, BarChart3 } from "lucide-react";
+import { Camera, FileText, Loader2, CheckCircle2, UploadCloud, LogOut, Calendar, Users, Building2, Receipt, Car, Bike, BarChart3, Printer, ShieldAlert } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -55,8 +55,6 @@ export default function Home() {
   useEffect(() => {
     if (status === "unauthenticated") {
       signIn("keycloak");
-    } else if (status === "authenticated" && (session?.user as any)?.role === "rrhh") {
-      router.push("/rrhh");
     } else if (session?.user?.email) {
       fetchMyFacturas();
     }
@@ -297,12 +295,11 @@ export default function Home() {
   const myTotalCarros = myFacturas.filter(f => f.tipo_vehiculo === "carro" || !f.tipo_vehiculo).length;
   const myTotalMotos = myFacturas.filter(f => f.tipo_vehiculo === "moto").length;
 
-  if (status === "loading" || status === "unauthenticated" || (status === "authenticated" && isRrhh)) {
+  if (status === "loading" || status === "unauthenticated") {
     return (
       <div className="min-h-screen bg-brand-blue flex flex-col items-center justify-center text-white">
         <Loader2 className="w-10 h-10 animate-spin mb-4" />
-        {status === "unauthenticated" && <p className="font-medium animate-pulse text-blue-200">Conectando con SUDEASEG SSO...</p>}
-        {isRrhh && <p className="font-medium animate-pulse text-blue-200">Ingresando a Panel de Recursos Humanos...</p>}
+        <p className="font-medium animate-pulse text-blue-200">Conectando con SUDEASEG SSO...</p>
       </div>
     );
   }
@@ -312,6 +309,23 @@ export default function Home() {
     <main className="min-h-screen bg-slate-50 text-slate-800 p-4 font-sans">
       <div className="max-w-md mx-auto space-y-6 py-4">
         
+        {isRrhh && (
+          <div className="bg-emerald-600 rounded-2xl p-4 flex items-center justify-between text-white shadow-lg shadow-emerald-600/20">
+            <div className="flex items-center gap-3">
+              <div className="bg-white/20 p-2 rounded-lg">
+                <ShieldAlert className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="font-bold text-sm">Modo Administrador</p>
+                <p className="text-xs text-emerald-100 font-medium">Auditoría y Gestión de Reembolsos</p>
+              </div>
+            </div>
+            <Link href="/rrhh" className="bg-white text-emerald-700 px-4 py-2 rounded-xl text-xs font-bold shadow-sm hover:bg-emerald-50 transition-colors">
+              Abrir Panel
+            </Link>
+          </div>
+        )}
+
         <header className="flex justify-between items-center bg-brand-blue p-5 rounded-2xl shadow-xl shadow-brand-blue/20">
           <div className="text-white">
             <h1 className="text-xl font-bold flex items-center gap-2"><Building2 className="w-5 h-5"/> SudeParking</h1>
@@ -321,12 +335,14 @@ export default function Home() {
             <Link href="/dashboard" className="flex items-center gap-2 px-4 py-2.5 bg-white/10 text-white rounded-xl hover:bg-white/20 transition font-bold text-sm">
               <BarChart3 className="w-5 h-5" /> Estadísticas
             </Link>
-            {isRrhh && (
-              <Link href="/rrhh" className="flex items-center gap-2 px-4 py-2.5 bg-white/10 text-white rounded-xl hover:bg-white/20 transition font-bold text-sm">
-                <Users className="w-5 h-5" /> RRHH
-              </Link>
-            )}
-            <button onClick={() => signOut()} className="p-2.5 bg-black/20 text-white rounded-xl hover:bg-black/30 transition">
+            <button onClick={async () => {
+              // Borramos sesión local de NextAuth sin redirigir de inmediato
+              await signOut({ redirect: false });
+              // Redirigimos al endpoint de logout de Keycloak para matar la sesión global
+              const keycloakIssuer = "http://172.16.205.33:8080/realms/sudeaseg";
+              const clientId = "sudeparking";
+              window.location.href = `${keycloakIssuer}/protocol/openid-connect/logout?client_id=${clientId}&post_logout_redirect_uri=${encodeURIComponent(window.location.origin)}`;
+            }} className="p-2.5 bg-black/20 text-white rounded-xl hover:bg-black/30 transition">
               <LogOut className="w-5 h-5" />
             </button>
           </div>

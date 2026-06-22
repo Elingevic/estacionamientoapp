@@ -114,7 +114,25 @@ export async function GET(request: Request) {
     // Inyectamos las variables dinámicas
     const userName = session.user.name || `${(session.user as any).given_name || ''} ${(session.user as any).family_name || ''}`.trim() || session.user.email;
     const userCedula = (session.user as any).cedula || "N/A (SSO)";
-    const userCargo = (session.user as any).cargo || "Empleado";
+    let userCargo = (session.user as any).cargo || "Empleado";
+
+    // Si el cargo es un número (ej. "47"), consultamos la API de catálogos para obtener el nombre real
+    if (userCargo && !isNaN(Number(userCargo))) {
+      try {
+        const res = await fetch(`http://172.16.205.33:8000/api/catalogs/position/?id=${userCargo}`, {
+          method: 'GET',
+          headers: { 'Accept': 'application/json' }
+        });
+        if (res.ok) {
+          const catalogData = await res.json();
+          if (Array.isArray(catalogData) && catalogData.length > 0 && catalogData[0].description) {
+            userCargo = catalogData[0].description;
+          }
+        }
+      } catch (err) {
+        console.error("Error consultando el catálogo de cargos:", err);
+      }
+    }
 
     doc.render({
       correlativo: correlativo,

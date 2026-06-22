@@ -277,11 +277,19 @@ export default function RrhhDashboard() {
             <p className="text-slate-500 font-medium">Auditoría y Gestión de Reembolsos</p>
           </div>
         </div>
-        <div className="flex gap-4 w-full md:w-auto">
+        <div className="flex gap-4 w-full md:w-auto flex-wrap justify-end">
+          <Link href="/" className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-indigo-100 text-indigo-700 font-bold hover:bg-indigo-200 transition-all shadow-sm">
+            <Receipt className="w-5 h-5" /> Mis Cargas
+          </Link>
           <Link href="/dashboard" className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-blue-100 text-brand-blue font-bold hover:bg-blue-200 transition-all shadow-sm">
             <BarChart3 className="w-5 h-5" /> Estadísticas
           </Link>
-          <button onClick={() => signOut()} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-xl border-2 border-slate-200 text-slate-600 font-bold hover:bg-slate-50 transition-all">
+          <button onClick={async () => {
+            await signOut({ redirect: false });
+            const keycloakIssuer = "http://172.16.205.33:8080/realms/sudeaseg";
+            const clientId = "sudeparking";
+            window.location.href = `${keycloakIssuer}/protocol/openid-connect/logout?client_id=${clientId}&post_logout_redirect_uri=${encodeURIComponent(window.location.origin)}`;
+          }} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-xl border-2 border-slate-200 text-slate-600 font-bold hover:bg-slate-50 transition-all">
             <LogOut className="w-5 h-5" /> Cerrar Sesión
           </button>
           <button onClick={triggerExportModal} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-lg shadow-emerald-600/30 transition-all">

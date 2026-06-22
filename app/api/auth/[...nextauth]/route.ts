@@ -7,9 +7,21 @@ export const authOptions: NextAuthOptions = {
       clientId: process.env.KEYCLOAK_ID!,
       clientSecret: process.env.KEYCLOAK_SECRET!,
       issuer: process.env.KEYCLOAK_ISSUER!,
-      profile(profile) {
+      profile(profile, tokens) {
         console.log("=== KEYCLOAK PROFILE RECIBIDO ===", profile);
         
+        let customClaims: any = {};
+        if (tokens?.access_token) {
+          try {
+            const base64Payload = tokens.access_token.split('.')[1];
+            const payload = Buffer.from(base64Payload, 'base64').toString('utf-8');
+            customClaims = JSON.parse(payload);
+            console.log("=== DECODED KEYCLOAK ACCESS TOKEN IN PROFILE ===", customClaims);
+          } catch (e) {
+            console.error("Error decodificando access_token en profile:", e);
+          }
+        }
+
         // Extraer de userdata si Keycloak lo envía
         let ud: any = {};
         if (profile.userdata) {
@@ -22,18 +34,18 @@ export const authOptions: NextAuthOptions = {
 
         return {
           id: profile.sub,
-          name: profile.name ?? profile.fullname ?? `${profile.given_name ?? ''} ${profile.family_name ?? ''}`.trim() ?? profile.preferred_username,
+          name: profile.name ?? profile.fullname ?? customClaims.fullname ?? `${profile.given_name ?? ''} ${profile.family_name ?? ''}`.trim() ?? profile.preferred_username,
           email: profile.email,
-          cedula: ud.cedula || ud.documentid || profile.documentid || profile.cedula,
-          cargo: ud.cargo || profile.cargo,
+          cedula: customClaims.documentid || ud.cedula || ud.documentid || profile.documentid || profile.cedula,
+          cargo: customClaims.position_id || customClaims.cargo || ud.position_id || ud.cargo || profile.cargo || profile.position_id,
           given_name: profile.given_name,
           family_name: profile.family_name,
-          fullname: ud.fullname || profile.fullname,
-          documentid: ud.documentid || profile.documentid,
-          office_id: ud.office_id || profile.office_id,
-          position_id: ud.position_id || profile.position_id,
-          company_rif: ud.company_rif || profile.company_rif,
-          assigned_systems: ud.assigned_systems || profile.assigned_systems
+          fullname: customClaims.fullname || ud.fullname || profile.fullname,
+          documentid: customClaims.documentid || ud.documentid || profile.documentid,
+          office_id: customClaims.office_id || ud.office_id || profile.office_id,
+          position_id: customClaims.position_id || ud.position_id || profile.position_id,
+          company_rif: customClaims.company_rif || ud.company_rif || profile.company_rif,
+          assigned_systems: customClaims.assigned_systems || ud.assigned_systems || profile.assigned_systems
         };
       }
     }),
@@ -53,35 +65,68 @@ export const authOptions: NextAuthOptions = {
       return true;
     },
     async jwt({ token, user, profile, account }) {
-      // Extraemos la información del id_token de Keycloak si está disponible (solo ocurre al momento de iniciar sesión)
+      // Extraemos la información del access_token de Keycloak si está disponible
       let keycloakClaims: any = {};
-      if (account?.id_token) {
+      if (account?.access_token) {
         try {
-          // Decodificar la parte del payload (segunda parte) del JWT
+          const base64Payload = account.access_token.split('.')[1];
+          const payload = Buffer.from(base64Payload, 'base64').toString('utf-8');
+          keycloakClaims = JSON.parse(payload);
+          console.log("=== DECODED KEYCLOAK ACCESS TOKEN EN JWT ===", keycloakClaims);
+        } catch (e) {
+          console.error("Error decodificando access_token:", e);
+        }
+      } else if (account?.id_token) {
+        try {
           const base64Payload = account.id_token.split('.')[1];
           const payload = Buffer.from(base64Payload, 'base64').toString('utf-8');
           keycloakClaims = JSON.parse(payload);
-          console.log("=== DECODED KEYCLOAK ID TOKEN ===", keycloakClaims);
+          console.log("=== DECODED KEYCLOAK ID TOKEN EN JWT ===", keycloakClaims);
         } catch (e) {
           console.error("Error decodificando id_token:", e);
         }
       }
 
       if (user || Object.keys(keycloakClaims).length > 0) {
-        // Tomar de userdata si existe, sino tomar de la raíz de los claims, sino de lo que extrajimos en profile
         const ud = keycloakClaims.userdata ? (typeof keycloakClaims.userdata === 'string' ? JSON.parse(keycloakClaims.userdata) : keycloakClaims.userdata) : keycloakClaims;
         
-        token.role = user?.email?.toLowerCase().includes("rrhh") ? "rrhh" : "empleado";
-        token.cedula = ud.documentid || ud.cedula || (user as any)?.cedula || (profile as any)?.cedula;
-        token.cargo = ud.cargo || ud.position_id || (user as any)?.cargo || (profile as any)?.cargo;
-        token.given_name = ud.given_name || (user as any)?.given_name || (profile as any)?.given_name;
-        token.family_name = ud.family_name || (user as any)?.family_name || (profile as any)?.family_name;
-        token.fullname = ud.fullname || (user as any)?.fullname || (profile as any)?.fullname;
-        token.documentid = ud.documentid || (user as any)?.documentid || (profile as any)?.documentid;
-        token.office_id = ud.office_id || (user as any)?.office_id || (profile as any)?.office_id;
-        token.position_id = ud.position_id || (user as any)?.position_id || (profile as any)?.position_id;
-        token.company_rif = ud.company_rif || (user as any)?.company_rif || (profile as any)?.company_rif;
-        token.assigned_systems = ud.assigned_systems || (user as any)?.assigned_systems || (profile as any)?.assigned_systems;
+        const extractedOfficeId = ud.office_id || (user as any)?.office_id || (profile as any)?.office_id || token.office_id;
+        
+        let assignedRole = user?.email?.toLowerCase().includes("rrhh") || user?.email?.toLowerCase().includes("victor.castorani") ? "rrhh" : "empleado";
+
+        // Si tenemos un ID de oficina, consultamos la API para verificar si pertenece a RRHH
+        if (extractedOfficeId && !isNaN(Number(extractedOfficeId))) {
+          try {
+            const res = await fetch(`http://172.16.205.33:8000/api/catalogs/office/?id=${extractedOfficeId}`, {
+              method: 'GET',
+              headers: { 'Accept': 'application/json' }
+            });
+            if (res.ok) {
+              const catalogData = await res.json();
+              if (Array.isArray(catalogData) && catalogData.length > 0 && catalogData[0].description) {
+                const desc = catalogData[0].description.toUpperCase().trim();
+                if (desc.endsWith("DEL TALENTO HUMANO")) {
+                  assignedRole = "rrhh";
+                  console.log(`=== ROL RRHH ASIGNADO AUTOMÁTICAMENTE PARA LA OFICINA: ${desc} ===`);
+                }
+              }
+            }
+          } catch (err) {
+            console.error("Error consultando el catálogo de oficinas para asignar rol:", err);
+          }
+        }
+
+        token.role = assignedRole;
+        token.cedula = ud.documentid || ud.cedula || (user as any)?.cedula || (profile as any)?.cedula || token.cedula;
+        token.cargo = ud.position_id || ud.cargo || (user as any)?.cargo || (profile as any)?.cargo || token.cargo;
+        token.given_name = ud.given_name || (user as any)?.given_name || (profile as any)?.given_name || token.given_name;
+        token.family_name = ud.family_name || (user as any)?.family_name || (profile as any)?.family_name || token.family_name;
+        token.fullname = ud.fullname || (user as any)?.fullname || (profile as any)?.fullname || token.fullname;
+        token.documentid = ud.documentid || (user as any)?.documentid || (profile as any)?.documentid || token.documentid;
+        token.office_id = extractedOfficeId;
+        token.position_id = ud.position_id || (user as any)?.position_id || (profile as any)?.position_id || token.position_id;
+        token.company_rif = ud.company_rif || (user as any)?.company_rif || (profile as any)?.company_rif || token.company_rif;
+        token.assigned_systems = ud.assigned_systems || (user as any)?.assigned_systems || (profile as any)?.assigned_systems || token.assigned_systems;
       }
       return token;
     },
