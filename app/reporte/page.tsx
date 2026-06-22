@@ -1,11 +1,8 @@
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "../api/auth/[...nextauth]/route";
-import { createClient } from "@supabase/supabase-js";
 import PrintButton from "./PrintButton";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://dummy.supabase.co";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "dummy";
+import { query } from "../../lib/db";
 
 export default async function ReportePage({
   searchParams,
@@ -28,25 +25,79 @@ export default async function ReportePage({
   }
 
   const isRrhh = (session.user as any).role === "rrhh";
-  const supabase = createClient(supabaseUrl, supabaseKey);
+  let sql: string;
+  let params: any[];
 
-  let query = supabase
-    .from("facturas")
-    .select("*")
-    .gte("fecha", start)
-    .lte("fecha", end)
-    .order("fecha", { ascending: true });
-
-  if (!isRrhh) {
-    query = query.eq("user_id", session.user.email);
-  } else if (emailFilter) {
-    query = query.ilike("user_id", `%${emailFilter}%`);
+  if (isRrhh) {
+    if (emailFilter) {
+      sql = `
+        SELECT 
+          id, 
+          TO_CHAR(fecha, 'YYYY-MM-DD') as fecha, 
+          nro_factura, 
+          monto, 
+          user_id, 
+          image_url, 
+          nombre_estacionamiento, 
+          lugar, 
+          tipo_vehiculo, 
+          tasa_usd, 
+          monto_usd, 
+          correlativo_reporte 
+        FROM facturas 
+        WHERE fecha >= $1 AND fecha <= $2 AND user_id ILIKE $3
+        ORDER BY fecha ASC, id ASC
+      `;
+      params = [start, end, `%${emailFilter}%`];
+    } else {
+      sql = `
+        SELECT 
+          id, 
+          TO_CHAR(fecha, 'YYYY-MM-DD') as fecha, 
+          nro_factura, 
+          monto, 
+          user_id, 
+          image_url, 
+          nombre_estacionamiento, 
+          lugar, 
+          tipo_vehiculo, 
+          tasa_usd, 
+          monto_usd, 
+          correlativo_reporte 
+        FROM facturas 
+        WHERE fecha >= $1 AND fecha <= $2 
+        ORDER BY fecha ASC, id ASC
+      `;
+      params = [start, end];
+    }
+  } else {
+    sql = `
+      SELECT 
+        id, 
+        TO_CHAR(fecha, 'YYYY-MM-DD') as fecha, 
+        nro_factura, 
+        monto, 
+        user_id, 
+        image_url, 
+        nombre_estacionamiento, 
+        lugar, 
+        tipo_vehiculo, 
+        tasa_usd, 
+        monto_usd, 
+        correlativo_reporte 
+      FROM facturas 
+      WHERE user_id = $1 AND fecha >= $2 AND fecha <= $3 
+      ORDER BY fecha ASC, id ASC
+    `;
+    params = [session.user.email, start, end];
   }
 
-  const { data: facturas, error } = await query;
-
-  if (error) {
-    return <div className="p-10 text-center text-red-500">Error cargando facturas: {error.message}</div>;
+  let facturas: any[] = [];
+  try {
+    const res = await query(sql, params);
+    facturas = res.rows;
+  } catch (dbErr: any) {
+    return <div className="p-10 text-center text-red-500">Error cargando facturas: {dbErr.message}</div>;
   }
 
   // Deduplicar facturas
@@ -70,10 +121,19 @@ export default async function ReportePage({
 
   const correlativo = `DOC-${Math.floor(Date.now() / 1000).toString().slice(-6)}`;
 
-  // Actualizar correlativo en DB si hay facturas (Opcional, depende de si la columna existe)
+  // Actualizar correlativo en DB si hay facturas
   const facturaIds = uniqueFacturas.map((f: any) => f.id).filter(id => id);
   if (facturaIds.length > 0) {
-    await supabase.from("facturas").update({ correlativo_reporte: correlativo }).in("id", facturaIds);
+    try {
+      const sqlUpdate = `
+        UPDATE facturas 
+        SET correlativo_reporte = $1 
+        WHERE id = ANY($2::int[])
+      `;
+      await query(sqlUpdate, [correlativo, facturaIds]);
+    } catch (updateError) {
+      console.error("Error guardando el correlativo en BD:", updateError);
+    }
   }
 
   // Obtener nombre de usuario

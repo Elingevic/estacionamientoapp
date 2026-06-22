@@ -2,17 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
-import { createClient } from "@supabase/supabase-js";
 import { Loader2, ArrowLeft, BarChart3, TrendingUp, Car, Bike, DollarSign, PieChart as PieChartIcon, Users } from "lucide-react";
 import Link from "next/link";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell
 } from "recharts";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://dummy.supabase.co";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "dummy";
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 export default function Dashboard() {
   const { data: session, status } = useSession();
@@ -76,25 +71,16 @@ export default function Dashboard() {
   const fetchData = async (silent = false) => {
     if (!silent) setLoading(true);
     try {
-      const isRrhh = session?.user?.email?.toLowerCase().includes("rrhh") || (session?.user as any)?.role === "rrhh";
-      let query = supabase.from("facturas").select("*")
-        .gte("fecha", startDate)
-        .lte("fecha", endDate);
-      
-      if (!isRrhh) {
-        query = query.eq("user_id", session!.user!.email);
+      const res = await fetch(`/api/facturas?start=${startDate}&end=${endDate}`);
+      if (!res.ok) {
+        throw new Error(await res.text());
       }
-      
-      const { data, error } = await query;
-      if (error) throw error;
+      const data = await res.json();
       if (data) {
         setFacturas(data);
-        
-        // Auto-corrección removida para evitar errores de schema cache
-        // Calculamos todo al vuelo en la UI.
       }
     } catch (e) {
-      console.error(e);
+      console.error("Error fetching data:", e);
     } finally {
       if (!silent) setLoading(false);
     }

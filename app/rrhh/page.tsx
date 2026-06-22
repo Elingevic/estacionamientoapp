@@ -2,14 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
-import { createClient } from "@supabase/supabase-js";
 import { Download, Calendar, Search, ExternalLink, Activity, DollarSign, Receipt, AlertCircle, X, ShieldAlert, Loader2, Building2, FileText, LogOut, BarChart3, Car, Bike } from "lucide-react";
 import Link from "next/link";
 import * as XLSX from "xlsx";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://dummy.supabase.co";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "dummy";
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 export default function RrhhDashboard() {
   const { data: session, status } = useSession();
@@ -74,12 +69,16 @@ export default function RrhhDashboard() {
         dataToUpdate.monto_usd = montoVal / bcvRate;
       }
 
-      const { error } = await supabase
-        .from("facturas")
-        .update(dataToUpdate)
-        .eq("id", editingFactura.id);
+      const res = await fetch("/api/facturas", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: editingFactura.id, ...dataToUpdate })
+      });
 
-      if (error) throw error;
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || "Error al actualizar");
+      }
 
       alert("Registro actualizado correctamente");
       setEditingFactura(null);
@@ -131,14 +130,11 @@ export default function RrhhDashboard() {
   const fetchFacturas = async (silent = false) => {
     if (!silent) setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("facturas")
-        .select("*")
-        .gte("fecha", startDate)
-        .lte("fecha", endDate)
-        .order("fecha", { ascending: false });
-
-      if (error) throw error;
+      const res = await fetch(`/api/facturas?start=${startDate}&end=${endDate}`);
+      if (!res.ok) {
+        throw new Error(await res.text());
+      }
+      const data = await res.json();
       if (data) {
         setFacturas(data);
         
@@ -162,13 +158,11 @@ export default function RrhhDashboard() {
                   updates.monto_usd = Number(f.monto) / bcvRate;
                 }
                 if (Object.keys(updates).length > 0) {
-                  let q = supabase.from("facturas").update(updates);
-                  if (f.id) {
-                    q = q.eq("id", f.id);
-                  } else {
-                    q = q.eq("nro_factura", f.nro_factura).eq("user_id", f.user_id);
-                  }
-                  await q;
+                  await fetch("/api/facturas", {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ id: f.id, ...updates })
+                  });
                 }
               }
               fetchFacturas(true);

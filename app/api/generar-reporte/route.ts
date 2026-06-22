@@ -1,14 +1,11 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import fs from "fs";
 import path from "path";
 import PizZip from "pizzip";
 import Docxtemplater from "docxtemplater";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "../auth/[...nextauth]/route";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://dummy.supabase.co";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "dummy";
+import { query } from "../../../lib/db";
 
 export async function GET(request: Request) {
   try {
@@ -16,8 +13,6 @@ export async function GET(request: Request) {
     if (!session || !session.user) {
       return NextResponse.json({ error: "No autorizado. Inicia sesión." }, { status: 401 });
     }
-
-    const supabase = createClient(supabaseUrl, supabaseKey);
 
     const { searchParams } = new URL(request.url);
     const start = searchParams.get("start");
@@ -29,25 +24,75 @@ export async function GET(request: Request) {
     }
 
     const isRrhh = (session.user as any).role === "rrhh";
+    let sql: string;
+    let params: any[];
 
-    let query = supabase
-      .from("facturas")
-      .select("*")
-      .gte("fecha", start)
-      .lte("fecha", end)
-      .order("fecha", { ascending: true });
-
-    // Si no es RRHH, solo puede ver sus propias facturas
-    if (!isRrhh) {
-      query = query.eq("user_id", session.user.email);
-    } else if (emailFilter) {
-      // Si es RRHH y buscó un correo específico, filtramos por ese correo
-      query = query.ilike("user_id", `%${emailFilter}%`);
+    if (isRrhh) {
+      if (emailFilter) {
+        sql = `
+          SELECT 
+            id, 
+            TO_CHAR(fecha, 'YYYY-MM-DD') as fecha, 
+            nro_factura, 
+            monto, 
+            user_id, 
+            image_url, 
+            nombre_estacionamiento, 
+            lugar, 
+            tipo_vehiculo, 
+            tasa_usd, 
+            monto_usd, 
+            correlativo_reporte 
+          FROM facturas 
+          WHERE fecha >= $1 AND fecha <= $2 AND user_id ILIKE $3
+          ORDER BY fecha ASC, id ASC
+        `;
+        params = [start, end, `%${emailFilter}%`];
+      } else {
+        sql = `
+          SELECT 
+            id, 
+            TO_CHAR(fecha, 'YYYY-MM-DD') as fecha, 
+            nro_factura, 
+            monto, 
+            user_id, 
+            image_url, 
+            nombre_estacionamiento, 
+            lugar, 
+            tipo_vehiculo, 
+            tasa_usd, 
+            monto_usd, 
+            correlativo_reporte 
+          FROM facturas 
+          WHERE fecha >= $1 AND fecha <= $2 
+          ORDER BY fecha ASC, id ASC
+        `;
+        params = [start, end];
+      }
+    } else {
+      sql = `
+        SELECT 
+          id, 
+          TO_CHAR(fecha, 'YYYY-MM-DD') as fecha, 
+          nro_factura, 
+          monto, 
+          user_id, 
+          image_url, 
+          nombre_estacionamiento, 
+          lugar, 
+          tipo_vehiculo, 
+          tasa_usd, 
+          monto_usd, 
+          correlativo_reporte 
+        FROM facturas 
+        WHERE user_id = $1 AND fecha >= $2 AND fecha <= $3 
+        ORDER BY fecha ASC, id ASC
+      `;
+      params = [session.user.email, start, end];
     }
 
-    const { data: facturas, error } = await query;
-
-    if (error) throw error;
+    const res = await query(sql, params);
+    const facturas = res.rows;
 
     let total_monto = 0;
     const numberFormat = new Intl.NumberFormat("en-US", {
@@ -101,13 +146,15 @@ export async function GET(request: Request) {
 
     const facturaIds = uniqueFacturas.map((f: any) => f.id).filter(id => id);
     if (facturaIds.length > 0) {
-      const { error: updateError } = await supabase
-        .from("facturas")
-        .update({ correlativo_reporte: correlativo })
-        .in("id", facturaIds);
-      
-      if (updateError) {
-        console.error("Error guardando el correlativo en BD (¿falta la columna?):", updateError);
+      try {
+        const sqlUpdate = `
+          UPDATE facturas 
+          SET correlativo_reporte = $1 
+          WHERE id = ANY($2::int[])
+        `;
+        await query(sqlUpdate, [correlativo, facturaIds]);
+      } catch (updateError) {
+        console.error("Error guardando el correlativo en BD:", updateError);
       }
     }
 

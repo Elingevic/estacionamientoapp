@@ -2,15 +2,10 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useSession, signIn, signOut } from "next-auth/react";
-import { createClient } from "@supabase/supabase-js";
 import Tesseract from "tesseract.js";
 import { Camera, FileText, Loader2, CheckCircle2, UploadCloud, LogOut, Calendar, Users, Building2, Receipt, Car, Bike, BarChart3, Printer, ShieldAlert } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://dummy.supabase.co";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "dummy";
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 export default function Home() {
   const { data: session, status } = useSession();
@@ -63,20 +58,16 @@ export default function Home() {
   const fetchMyFacturas = async (silent = false) => {
     if (!silent) setFetchingFacturas(true);
     try {
-      const { data, error } = await supabase
-        .from("facturas")
-        .select("*")
-        .eq("user_id", session!.user!.email)
-        .gte("fecha", startDate)
-        .lte("fecha", endDate)
-        .order("fecha", { ascending: false });
+      const res = await fetch(`/api/facturas?start=${startDate}&end=${endDate}`);
+      if (!res.ok) {
+        throw new Error(await res.text());
+      }
+      const data = await res.json();
       if (data) {
         setMyFacturas(data);
-        // Auto-corrección removida para evitar errores de schema cache
-        // Calculamos todo al vuelo en la UI.
       }
     } catch (e) {
-      console.error(e);
+      console.error("Error fetching facturas:", e);
     } finally {
       if (!silent) setFetchingFacturas(false);
     }
@@ -102,12 +93,16 @@ export default function Home() {
         dataToUpdate.monto_usd = montoVal / bcvRate;
       }
 
-      const { error } = await supabase
-        .from("facturas")
-        .update(dataToUpdate)
-        .eq("id", editingFactura.id);
+      const res = await fetch("/api/facturas", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: editingFactura.id, ...dataToUpdate })
+      });
 
-      if (error) throw error;
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || "Error al actualizar");
+      }
 
       alert("Registro actualizado correctamente");
       setEditingFactura(null);
@@ -228,15 +223,18 @@ export default function Home() {
     try {
       let imageUrl = null;
       if (compressedBlob) {
-        const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`;
-        const { data, error: uploadError } = await supabase.storage
-          .from("tickets")
-          .upload(fileName, compressedBlob, { contentType: "image/jpeg" });
-          
-        if (uploadError) throw new Error("Error subiendo foto: " + uploadError.message);
-        
-        const { data: { publicUrl } } = supabase.storage.from("tickets").getPublicUrl(fileName);
-        imageUrl = publicUrl;
+        const fd = new FormData();
+        fd.append("file", compressedBlob, "ticket.jpg");
+        const uploadRes = await fetch("/api/upload", {
+          method: "POST",
+          body: fd
+        });
+        if (!uploadRes.ok) {
+          const errData = await uploadRes.json();
+          throw new Error("Error subiendo foto: " + (errData.error || "Error desconocido"));
+        }
+        const uploadData = await uploadRes.json();
+        imageUrl = uploadData.url;
       }
 
       let dataToInsert: any = {
@@ -255,27 +253,17 @@ export default function Home() {
         dataToInsert.monto_usd = (parseFloat(formData.monto) || 0) / bcvRate;
       }
 
-      const tryInsert = async (data: any, attempt = 1): Promise<any> => {
-        let res = await supabase.from("facturas").insert([data]);
-        if (res.error && attempt <= 3) {
-          const errStr = JSON.stringify(res.error).toLowerCase();
-          let needsRetry = false;
-          if (errStr.includes("monto_usd") || errStr.includes("tasa_usd")) {
-            delete data.monto_usd; delete data.tasa_usd; needsRetry = true;
-          }
-          if (errStr.includes("tipo_vehiculo")) {
-            delete data.tipo_vehiculo; needsRetry = true;
-          }
-          if (needsRetry) return tryInsert(data, attempt + 1);
-        }
-        return res;
-      };
+      const res = await fetch("/api/facturas", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(dataToInsert)
+      });
 
-      const { error } = await tryInsert(dataToInsert);
-
-      if (error) {
-        throw error;
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || "Error al guardar factura");
       }
+
       setStep("success");
     } catch (error: any) {
       alert("Error: " + (error?.message || "Desconocido"));
