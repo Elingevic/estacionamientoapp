@@ -51,6 +51,18 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
+    async redirect({ url, baseUrl }) {
+      if (url.includes("172.16.205.33:8080")) {
+        return url;
+      }
+      if (url.startsWith("/")) return `${baseUrl}${url}`;
+      try {
+        if (new URL(url).origin === baseUrl) return url;
+      } catch (e) {
+        console.error("Error parseando url en redirect callback:", e);
+      }
+      return baseUrl;
+    },
     async signIn({ user, account, profile }) {
       console.log("=== SIGN-IN RAW ACCOUNT ===", account);
       console.log("=== SIGN-IN RAW PROFILE ===", profile);

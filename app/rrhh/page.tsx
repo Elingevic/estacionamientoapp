@@ -241,7 +241,6 @@ export default function RrhhDashboard() {
             <BarChart3 className="w-5 h-5" /> Estadísticas
           </Link>
           <button onClick={async () => {
-            await signOut({ redirect: false });
             const keycloakIssuer = "http://172.16.205.33:8080/realms/sudeaseg";
             const clientId = "sudeparking";
             const idToken = (session as any)?.id_token;
@@ -252,7 +251,7 @@ export default function RrhhDashboard() {
             }
             logoutUrl += `&redirect_uri=${encodeURIComponent("http://172.16.205.33:8080")}`;
             
-            window.location.href = logoutUrl;
+            await signOut({ callbackUrl: logoutUrl });
           }} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-xl border-2 border-slate-200 text-slate-600 font-bold hover:bg-slate-50 transition-all">
             <LogOut className="w-5 h-5" /> Cerrar Sesión
           </button>

@@ -314,7 +314,6 @@ export default function Home() {
               <BarChart3 className="w-5 h-5" /> Estadísticas
             </Link>
             <button onClick={async () => {
-              await signOut({ redirect: false });
               const keycloakIssuer = "http://172.16.205.33:8080/realms/sudeaseg";
               const clientId = "sudeparking";
               const idToken = (session as any)?.id_token;
@@ -325,7 +324,7 @@ export default function Home() {
               }
               logoutUrl += `&redirect_uri=${encodeURIComponent("http://172.16.205.33:8080")}`;
               
-              window.location.href = logoutUrl;
+              await signOut({ callbackUrl: logoutUrl });
             }} className="p-2.5 bg-black/20 text-white rounded-xl hover:bg-black/30 transition">
               <LogOut className="w-5 h-5" />
             </button>
