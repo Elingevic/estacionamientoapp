@@ -87,6 +87,11 @@ export const authOptions: NextAuthOptions = {
         }
       }
 
+      if (account) {
+        token.id_token = account.id_token;
+        token.access_token = account.access_token;
+      }
+
       if (user || Object.keys(keycloakClaims).length > 0) {
         const ud = keycloakClaims.userdata ? (typeof keycloakClaims.userdata === 'string' ? JSON.parse(keycloakClaims.userdata) : keycloakClaims.userdata) : keycloakClaims;
         
@@ -144,6 +149,8 @@ export const authOptions: NextAuthOptions = {
         (session.user as any).position_id = token.position_id;
         (session.user as any).company_rif = token.company_rif;
         (session.user as any).assigned_systems = token.assigned_systems;
+        (session as any).id_token = token.id_token;
+        (session as any).access_token = token.access_token;
       }
       return session;
     },

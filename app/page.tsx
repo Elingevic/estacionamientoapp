@@ -314,12 +314,18 @@ export default function Home() {
               <BarChart3 className="w-5 h-5" /> Estadísticas
             </Link>
             <button onClick={async () => {
-              // Borramos sesión local de NextAuth sin redirigir de inmediato
               await signOut({ redirect: false });
-              // Redirigimos al endpoint de logout de Keycloak para matar la sesión global
               const keycloakIssuer = "http://172.16.205.33:8080/realms/sudeaseg";
               const clientId = "sudeparking";
-              window.location.href = `${keycloakIssuer}/protocol/openid-connect/logout?client_id=${clientId}&post_logout_redirect_uri=${encodeURIComponent(window.location.origin)}`;
+              const idToken = (session as any)?.id_token;
+              
+              let logoutUrl = `${keycloakIssuer}/protocol/openid-connect/logout?client_id=${clientId}&post_logout_redirect_uri=${encodeURIComponent("http://172.16.205.33:8080")}`;
+              if (idToken) {
+                logoutUrl += `&id_token_hint=${idToken}`;
+              }
+              logoutUrl += `&redirect_uri=${encodeURIComponent("http://172.16.205.33:8080")}`;
+              
+              window.location.href = logoutUrl;
             }} className="p-2.5 bg-black/20 text-white rounded-xl hover:bg-black/30 transition">
               <LogOut className="w-5 h-5" />
             </button>
