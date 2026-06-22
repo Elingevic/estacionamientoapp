@@ -32,40 +32,36 @@ export async function GET(request: Request) {
         sql = `
           SELECT 
             id, 
-            TO_CHAR(fecha, 'YYYY-MM-DD') as fecha, 
-            nro_factura, 
-            monto, 
+            TO_CHAR(date, 'YYYY-MM-DD') as date, 
+            invoice_number, 
+            amount, 
             user_id, 
             image_url, 
-            nombre_estacionamiento, 
-            lugar, 
-            tipo_vehiculo, 
-            tasa_usd, 
-            monto_usd, 
-            correlativo_reporte 
-          FROM facturas 
-          WHERE fecha >= $1 AND fecha <= $2 AND user_id ILIKE $3
-          ORDER BY fecha ASC, id ASC
+            parking_name, 
+            location, 
+            vehicle_type, 
+            report_sequence 
+          FROM invoices 
+          WHERE date >= $1 AND date <= $2 AND user_id ILIKE $3
+          ORDER BY date ASC, id ASC
         `;
         params = [start, end, `%${emailFilter}%`];
       } else {
         sql = `
           SELECT 
             id, 
-            TO_CHAR(fecha, 'YYYY-MM-DD') as fecha, 
-            nro_factura, 
-            monto, 
+            TO_CHAR(date, 'YYYY-MM-DD') as date, 
+            invoice_number, 
+            amount, 
             user_id, 
             image_url, 
-            nombre_estacionamiento, 
-            lugar, 
-            tipo_vehiculo, 
-            tasa_usd, 
-            monto_usd, 
-            correlativo_reporte 
-          FROM facturas 
-          WHERE fecha >= $1 AND fecha <= $2 
-          ORDER BY fecha ASC, id ASC
+            parking_name, 
+            location, 
+            vehicle_type, 
+            report_sequence 
+          FROM invoices 
+          WHERE date >= $1 AND date <= $2 
+          ORDER BY date ASC, id ASC
         `;
         params = [start, end];
       }
@@ -73,20 +69,18 @@ export async function GET(request: Request) {
       sql = `
         SELECT 
           id, 
-          TO_CHAR(fecha, 'YYYY-MM-DD') as fecha, 
-          nro_factura, 
-          monto, 
+          TO_CHAR(date, 'YYYY-MM-DD') as date, 
+          invoice_number, 
+          amount, 
           user_id, 
           image_url, 
-          nombre_estacionamiento, 
-          lugar, 
-          tipo_vehiculo, 
-          tasa_usd, 
-          monto_usd, 
-          correlativo_reporte 
-        FROM facturas 
-        WHERE user_id = $1 AND fecha >= $2 AND fecha <= $3 
-        ORDER BY fecha ASC, id ASC
+          parking_name, 
+          location, 
+          vehicle_type, 
+          report_sequence 
+        FROM invoices 
+        WHERE user_id = $1 AND date >= $2 AND date <= $3 
+        ORDER BY date ASC, id ASC
       `;
       params = [session.user.email, start, end];
     }
@@ -103,7 +97,7 @@ export async function GET(request: Request) {
     const uniqueFacturas: any[] = [];
     const seenFacturas = new Set();
     facturas?.forEach(f => {
-      const key = `${f.fecha}-${f.nro_factura}`;
+      const key = `${f.date}-${f.invoice_number}`;
       if (!seenFacturas.has(key)) {
         seenFacturas.add(key);
         uniqueFacturas.push(f);
@@ -111,20 +105,20 @@ export async function GET(request: Request) {
     });
 
     const facturasFormat = uniqueFacturas.map((f) => {
-      total_monto += Number(f.monto);
+      total_monto += Number(f.amount);
       
-      const [y, m, d] = f.fecha.split("-");
+      const [y, m, d] = f.date.split("-");
       const currentFecha = `${d}/${m}/${y}`;
 
       return {
         ...f,
-        monto: `Bs. ${numberFormat.format(Number(f.monto))}`,
+        monto: `Bs. ${numberFormat.format(Number(f.amount))}`,
         fecha: currentFecha,
-        // Añadimos datos más cortos para que la tabla en Word no se desborde
-        empleado: f.user_id,
-        nombre_estacionamiento: f.nombre_estacionamiento || f.estacionamiento || "No especificado",
-        estacionamiento: f.nombre_estacionamiento || f.estacionamiento || "No especificado",
-        lugar: f.lugar || "No especificado"
+        nro_factura: f.invoice_number,
+        nombre_estacionamiento: f.parking_name || "No especificado",
+        estacionamiento: f.parking_name || "No especificado",
+        lugar: f.location || "No especificado",
+        empleado: f.user_id
       };
     }) || [];
 
@@ -148,8 +142,8 @@ export async function GET(request: Request) {
     if (facturaIds.length > 0) {
       try {
         const sqlUpdate = `
-          UPDATE facturas 
-          SET correlativo_reporte = $1 
+          UPDATE invoices 
+          SET report_sequence = $1 
           WHERE id = ANY($2::int[])
         `;
         await query(sqlUpdate, [correlativo, facturaIds]);

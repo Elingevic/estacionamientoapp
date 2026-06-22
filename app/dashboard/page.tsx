@@ -111,33 +111,33 @@ export default function Dashboard() {
 
   const filteredFacturas = facturas.filter(f => 
     f.user_id?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    f.nro_factura?.toLowerCase().includes(searchTerm.toLowerCase())
+    f.invoice_number?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   // Estadísticas
   const totalFacturas = filteredFacturas.length;
-  const totalMonto = filteredFacturas.reduce((sum, f) => sum + Number(f.monto), 0);
-  const totalMontoUsd = filteredFacturas.reduce((sum, f) => sum + (f.monto_usd ? Number(f.monto_usd) : Number(f.monto) / bcvRate), 0);
+  const totalMonto = filteredFacturas.reduce((sum, f) => sum + Number(f.amount), 0);
+  const totalMontoUsd = filteredFacturas.reduce((sum, f) => sum + Number(f.amount) / bcvRate, 0);
   
-  const totalCarros = filteredFacturas.filter(f => f.tipo_vehiculo === "carro" || !f.tipo_vehiculo).length;
-  const totalMotos = filteredFacturas.filter(f => f.tipo_vehiculo === "moto").length;
+  const totalCarros = filteredFacturas.filter(f => f.vehicle_type === "carro" || !f.vehicle_type).length;
+  const totalMotos = filteredFacturas.filter(f => f.vehicle_type === "moto").length;
 
-  const montoCarros = filteredFacturas.filter(f => f.tipo_vehiculo === "carro" || !f.tipo_vehiculo).reduce((sum, f) => sum + Number(f.monto), 0);
-  const montoMotos = filteredFacturas.filter(f => f.tipo_vehiculo === "moto").reduce((sum, f) => sum + Number(f.monto), 0);
+  const montoCarros = filteredFacturas.filter(f => f.vehicle_type === "carro" || !f.vehicle_type).reduce((sum, f) => sum + Number(f.amount), 0);
+  const montoMotos = filteredFacturas.filter(f => f.vehicle_type === "moto").reduce((sum, f) => sum + Number(f.amount), 0);
   
-  const montoCarrosUsd = filteredFacturas.filter(f => f.tipo_vehiculo === "carro" || !f.tipo_vehiculo).reduce((sum, f) => sum + (f.monto_usd ? Number(f.monto_usd) : Number(f.monto) / bcvRate), 0);
-  const montoMotosUsd = filteredFacturas.filter(f => f.tipo_vehiculo === "moto").reduce((sum, f) => sum + (f.monto_usd ? Number(f.monto_usd) : Number(f.monto) / bcvRate), 0);
+  const montoCarrosUsd = filteredFacturas.filter(f => f.vehicle_type === "carro" || !f.vehicle_type).reduce((sum, f) => sum + Number(f.amount) / bcvRate, 0);
+  const montoMotosUsd = filteredFacturas.filter(f => f.vehicle_type === "moto").reduce((sum, f) => sum + Number(f.amount) / bcvRate, 0);
 
   const totalPersonas = new Set(filteredFacturas.map(f => f.user_id)).size;
 
   // Gastos mensuales para gráfica
   const mesesNombres = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
   const facturasPorMes = filteredFacturas.reduce((acc, f) => {
-    const [y, m, d] = f.fecha.split("-");
+    const [y, m, d] = f.date.split("-");
     const mesIdx = Number(m) - 1;
     if (!acc[mesIdx]) acc[mesIdx] = { montoBs: 0, montoUsd: 0 };
-    acc[mesIdx].montoBs += Number(f.monto);
-    acc[mesIdx].montoUsd += (f.monto_usd ? Number(f.monto_usd) : Number(f.monto) / bcvRate);
+    acc[mesIdx].montoBs += Number(f.amount);
+    acc[mesIdx].montoUsd += Number(f.amount) / bcvRate;
     return acc;
   }, {} as Record<number, {montoBs: number, montoUsd: number}>);
 
@@ -339,11 +339,11 @@ export default function Dashboard() {
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {Object.entries(filteredFacturas.reduce((acc, f) => {
-                    const isMoto = f.tipo_vehiculo === "moto";
+                    const isMoto = f.vehicle_type === "moto";
                     if (!acc[f.user_id]) acc[f.user_id] = { tickets: 0, bs: 0, usd: 0, carros: 0, motos: 0 };
                     acc[f.user_id].tickets += 1;
-                    acc[f.user_id].bs += Number(f.monto);
-                    acc[f.user_id].usd += (f.monto_usd ? Number(f.monto_usd) : Number(f.monto) / bcvRate);
+                    acc[f.user_id].bs += Number(f.amount);
+                    acc[f.user_id].usd += Number(f.amount) / bcvRate;
                     if (isMoto) acc[f.user_id].motos += 1;
                     else acc[f.user_id].carros += 1;
                     return acc;

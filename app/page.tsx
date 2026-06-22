@@ -78,20 +78,15 @@ export default function Home() {
     if (!editingFactura) return;
     setEditLoading(true);
     try {
-      const montoVal = parseFloat(editingFactura.monto) || 0;
+      const amountVal = parseFloat(editingFactura.amount) || 0;
       const dataToUpdate: any = {
-        fecha: editingFactura.fecha,
-        nro_factura: editingFactura.nro_factura,
-        monto: montoVal,
-        nombre_estacionamiento: editingFactura.estacionamiento || editingFactura.nombre_estacionamiento || "",
-        lugar: editingFactura.lugar || "",
-        tipo_vehiculo: editingFactura.tipo_vehiculo
+        date: editingFactura.date,
+        invoice_number: editingFactura.invoice_number,
+        amount: amountVal,
+        parking_name: editingFactura.parking_name || "",
+        location: editingFactura.location || "",
+        vehicle_type: editingFactura.vehicle_type
       };
-
-      if (bcvRate) {
-        dataToUpdate.tasa_usd = bcvRate;
-        dataToUpdate.monto_usd = montoVal / bcvRate;
-      }
 
       const res = await fetch("/api/facturas", {
         method: "PUT",
@@ -238,20 +233,15 @@ export default function Home() {
       }
 
       let dataToInsert: any = {
-        fecha: formData.fecha,
-        nro_factura: formData.nro_factura,
-        monto: parseFloat(formData.monto) || 0,
+        date: formData.fecha,
+        invoice_number: formData.nro_factura,
+        amount: parseFloat(formData.monto) || 0,
         user_id: session.user.email,
         image_url: imageUrl,
-        nombre_estacionamiento: formData.estacionamiento,
-        lugar: formData.lugar,
-        tipo_vehiculo: formData.tipo_vehiculo
+        parking_name: formData.estacionamiento,
+        location: formData.lugar,
+        vehicle_type: formData.tipo_vehiculo
       };
-
-      if (bcvRate) {
-        dataToInsert.tasa_usd = bcvRate;
-        dataToInsert.monto_usd = (parseFloat(formData.monto) || 0) / bcvRate;
-      }
 
       const res = await fetch("/api/facturas", {
         method: "POST",
@@ -278,10 +268,10 @@ export default function Home() {
 
   const isRrhh = session?.user?.email?.toLowerCase().includes("rrhh") || (session?.user as any)?.role === "rrhh";
 
-  const myTotalMonto = myFacturas.reduce((sum, f) => sum + Number(f.monto), 0);
-  const myTotalMontoUsd = myFacturas.reduce((sum, f) => sum + (f.monto_usd ? Number(f.monto_usd) : Number(f.monto) / (bcvRate || 587.40)), 0);
-  const myTotalCarros = myFacturas.filter(f => f.tipo_vehiculo === "carro" || !f.tipo_vehiculo).length;
-  const myTotalMotos = myFacturas.filter(f => f.tipo_vehiculo === "moto").length;
+  const myTotalMonto = myFacturas.reduce((sum, f) => sum + Number(f.amount), 0);
+  const myTotalMontoUsd = myFacturas.reduce((sum, f) => sum + Number(f.amount) / (bcvRate || 587.40), 0);
+  const myTotalCarros = myFacturas.filter(f => f.vehicle_type === "carro" || !f.vehicle_type).length;
+  const myTotalMotos = myFacturas.filter(f => f.vehicle_type === "moto").length;
 
   if (status === "loading" || status === "unauthenticated") {
     return (
@@ -482,8 +472,8 @@ export default function Home() {
             ) : (
               <div className="space-y-3 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
                 {myFacturas.map((f, i) => {
-                  const isMoto = f.tipo_vehiculo === "moto";
-                  const itemUsd = f.monto_usd ? Number(f.monto_usd) : Number(f.monto) / (bcvRate || 587.40);
+                  const isMoto = f.vehicle_type === "moto";
+                  const itemUsd = Number(f.amount) / (bcvRate || 587.40);
                   return (
                     <div key={i} className="flex justify-between items-center bg-slate-50 p-4 rounded-2xl border border-slate-100 hover:border-slate-200 transition-colors group">
                       <div className="flex items-center gap-3">
@@ -491,26 +481,26 @@ export default function Home() {
                           {isMoto ? <Bike className="w-4 h-4" /> : <Car className="w-4 h-4" />}
                         </div>
                         <div>
-                          <p className="text-xs font-bold text-slate-800">{new Date(f.fecha + "T12:00:00").toLocaleDateString("es-ES")}</p>
+                          <p className="text-xs font-bold text-slate-800">{new Date(f.date + "T12:00:00").toLocaleDateString("es-ES")}</p>
                           <div className="flex items-center gap-1.5 mt-0.5">
-                            <span className="text-xs text-slate-500 font-mono">#{f.nro_factura}</span>
+                            <span className="text-xs text-slate-500 font-mono">#{f.invoice_number}</span>
                             <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-full uppercase ${isMoto ? 'bg-red-50 text-brand-red border border-red-200' : 'bg-blue-50 text-brand-blue border border-blue-200'}`}>
                               {isMoto ? "Moto" : "Carro"}
                             </span>
                           </div>
                           <div className="mt-1 space-y-0.5">
                             <p className="text-xs text-slate-700 font-semibold flex items-center gap-1">
-                              {f.nombre_estacionamiento || f.estacionamiento || "Sin nombre"}
+                              {f.parking_name || "Sin nombre"}
                             </p>
                             <p className="text-[11px] text-slate-400 font-medium flex items-center gap-1">
-                              {f.lugar || "Sin lugar"}
+                              {f.location || "Sin lugar"}
                             </p>
                           </div>
                         </div>
                       </div>
                       <div className="text-right flex flex-col justify-between items-end self-stretch">
                         <div>
-                          <p className="text-sm font-bold text-slate-800">Bs. {Number(f.monto).toFixed(2)}</p>
+                          <p className="text-sm font-bold text-slate-800">Bs. {Number(f.amount).toFixed(2)}</p>
                           <p className="text-xs font-bold text-emerald-600">≈ ${itemUsd.toFixed(2)}</p>
                         </div>
                       </div>
@@ -540,34 +530,34 @@ export default function Home() {
             <form onSubmit={handleEditSubmit} className="space-y-4">
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Fecha</label>
-                <input type="date" required value={editingFactura.fecha} onChange={(e) => setEditingFactura({ ...editingFactura, fecha: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-brand-blue text-sm" />
+                <input type="date" required value={editingFactura.date || ""} onChange={(e) => setEditingFactura({ ...editingFactura, date: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-brand-blue text-sm" />
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Nombre del Estacionamiento</label>
-                <input type="text" value={editingFactura.nombre_estacionamiento || editingFactura.estacionamiento || ""} onChange={(e) => setEditingFactura({ ...editingFactura, estacionamiento: e.target.value, nombre_estacionamiento: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-brand-blue text-sm" />
+                <input type="text" value={editingFactura.parking_name || ""} onChange={(e) => setEditingFactura({ ...editingFactura, parking_name: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-brand-blue text-sm" />
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Lugar</label>
-                <input type="text" value={editingFactura.lugar || ""} onChange={(e) => setEditingFactura({ ...editingFactura, lugar: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-brand-blue text-sm" />
+                <input type="text" value={editingFactura.location || ""} onChange={(e) => setEditingFactura({ ...editingFactura, location: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-brand-blue text-sm" />
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Nro. de Factura</label>
-                <input type="text" required value={editingFactura.nro_factura} onChange={(e) => setEditingFactura({ ...editingFactura, nro_factura: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-brand-blue text-sm font-mono" />
+                <input type="text" required value={editingFactura.invoice_number || ""} onChange={(e) => setEditingFactura({ ...editingFactura, invoice_number: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-brand-blue text-sm font-mono" />
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tipo de Vehículo</label>
                 <div className="flex gap-2">
-                  <button type="button" onClick={() => setEditingFactura({...editingFactura, tipo_vehiculo: "carro"})} className={`flex-1 py-2 px-3 rounded-lg border flex items-center justify-center gap-1.5 transition-all font-bold text-xs ${editingFactura.tipo_vehiculo === "carro" ? "border-brand-blue bg-brand-blue/5 text-brand-blue" : "border-slate-200 text-slate-500"}`}>
+                  <button type="button" onClick={() => setEditingFactura({...editingFactura, vehicle_type: "carro"})} className={`flex-1 py-2 px-3 rounded-lg border flex items-center justify-center gap-1.5 transition-all font-bold text-xs ${editingFactura.vehicle_type === "carro" ? "border-brand-blue bg-brand-blue/5 text-brand-blue" : "border-slate-200 text-slate-500"}`}>
                     <Car className="w-4 h-4" /> Carro
                   </button>
-                  <button type="button" onClick={() => setEditingFactura({...editingFactura, tipo_vehiculo: "moto"})} className={`flex-1 py-2 px-3 rounded-lg border flex items-center justify-center gap-1.5 transition-all font-bold text-xs ${editingFactura.tipo_vehiculo === "moto" ? "border-brand-blue bg-brand-blue/5 text-brand-blue" : "border-slate-200 text-slate-500"}`}>
+                  <button type="button" onClick={() => setEditingFactura({...editingFactura, vehicle_type: "moto"})} className={`flex-1 py-2 px-3 rounded-lg border flex items-center justify-center gap-1.5 transition-all font-bold text-xs ${editingFactura.vehicle_type === "moto" ? "border-brand-blue bg-brand-blue/5 text-brand-blue" : "border-slate-200 text-slate-500"}`}>
                     <Bike className="w-4 h-4" /> Moto
                   </button>
                 </div>
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Monto (Bs.)</label>
-                <input type="number" step="0.01" required value={editingFactura.monto} onChange={(e) => setEditingFactura({ ...editingFactura, monto: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-brand-blue text-sm font-semibold" />
+                <input type="number" step="0.01" required value={editingFactura.amount || ""} onChange={(e) => setEditingFactura({ ...editingFactura, amount: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-brand-blue text-sm font-semibold" />
               </div>
               
               <div className="pt-2 flex gap-2">

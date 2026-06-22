@@ -53,21 +53,15 @@ export default function RrhhDashboard() {
     if (!editingFactura) return;
     setEditLoading(true);
     try {
-      const montoVal = parseFloat(editingFactura.monto) || 0;
+      const amountVal = parseFloat(editingFactura.amount) || 0;
       const dataToUpdate: any = {
-        fecha: editingFactura.fecha,
-        nro_factura: editingFactura.nro_factura,
-        monto: montoVal,
-        estacionamiento: editingFactura.estacionamiento || "",
-        nombre_estacionamiento: editingFactura.estacionamiento || "",
-        lugar: editingFactura.lugar || "",
-        tipo_vehiculo: editingFactura.tipo_vehiculo
+        date: editingFactura.date,
+        invoice_number: editingFactura.invoice_number,
+        amount: amountVal,
+        parking_name: editingFactura.parking_name || "",
+        location: editingFactura.location || "",
+        vehicle_type: editingFactura.vehicle_type
       };
-
-      if (bcvRate) {
-        dataToUpdate.tasa_usd = bcvRate;
-        dataToUpdate.monto_usd = montoVal / bcvRate;
-      }
 
       const res = await fetch("/api/facturas", {
         method: "PUT",
@@ -137,38 +131,6 @@ export default function RrhhDashboard() {
       const data = await res.json();
       if (data) {
         setFacturas(data);
-        
-        // Auto-corrección de facturas antiguas
-        const isMigrated = typeof window !== "undefined" && sessionStorage.getItem("sude_migrated") === "true";
-        if (!isMigrated && bcvRate && bcvRate > 100) {
-          const incorrectas = data.filter((f: any) => 
-            (f.nro_factura === "00027330" && f.tipo_vehiculo !== "moto") ||
-            (!f.tasa_usd || f.tasa_usd === 36.5 || (f.monto_usd && Math.abs(Number(f.monto_usd) - (Number(f.monto) / 36.5)) < 0.1))
-          );
-          if (incorrectas.length > 0) {
-            sessionStorage.setItem("sude_migrated", "true");
-            (async () => {
-              for (const f of incorrectas) {
-                const updates: any = {};
-                if (f.nro_factura === "00027330" && f.tipo_vehiculo !== "moto") {
-                  updates.tipo_vehiculo = "moto";
-                }
-                if (!f.tasa_usd || f.tasa_usd === 36.5) {
-                  updates.tasa_usd = bcvRate;
-                  updates.monto_usd = Number(f.monto) / bcvRate;
-                }
-                if (Object.keys(updates).length > 0) {
-                  await fetch("/api/facturas", {
-                    method: "PUT",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ id: f.id, ...updates })
-                  });
-                }
-              }
-              fetchFacturas(true);
-            })();
-          }
-        }
       }
     } catch (error) {
       console.error("Error fetching facturas:", error);
@@ -180,7 +142,7 @@ export default function RrhhDashboard() {
 
   const filteredFacturas = facturas.filter(f => 
     f.user_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    f.nro_factura?.toLowerCase().includes(searchTerm.toLowerCase())
+    f.invoice_number?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const facturasPorEmpleado = filteredFacturas.reduce((acc, f) => {
@@ -192,13 +154,13 @@ export default function RrhhDashboard() {
   const listaEmpleados = Object.keys(facturasPorEmpleado).map(email => ({
     email,
     facturas: facturasPorEmpleado[email],
-    totalMonto: facturasPorEmpleado[email].reduce((sum: number, f: any) => sum + Number(f.monto), 0),
-    totalMontoUsd: facturasPorEmpleado[email].reduce((sum: number, f: any) => sum + (f.monto_usd ? Number(f.monto_usd) : Number(f.monto) / bcvRate), 0),
+    totalMonto: facturasPorEmpleado[email].reduce((sum: number, f: any) => sum + Number(f.amount), 0),
+    totalMontoUsd: facturasPorEmpleado[email].reduce((sum: number, f: any) => sum + Number(f.amount) / bcvRate, 0),
     totalTickets: facturasPorEmpleado[email].length
   }));
 
-  const totalMonto = filteredFacturas.reduce((acc, f) => acc + Number(f.monto), 0);
-  const totalMontoUsd = filteredFacturas.reduce((acc, f) => acc + (f.monto_usd ? Number(f.monto_usd) : Number(f.monto) / bcvRate), 0);
+  const totalMonto = filteredFacturas.reduce((acc, f) => acc + Number(f.amount), 0);
+  const totalMontoUsd = filteredFacturas.reduce((acc, f) => acc + Number(f.amount) / bcvRate, 0);
   const totalTickets = filteredFacturas.length;
   const promedioTicket = totalTickets > 0 ? totalMonto / totalTickets : 0;
   const promedioTicketUsd = totalTickets > 0 ? totalMontoUsd / totalTickets : 0;
@@ -218,12 +180,12 @@ export default function RrhhDashboard() {
     }
 
     const dataToExport = dataSource.map((f: any) => ({
-      "Fecha Escaneo": f.fecha,
+      "Fecha Escaneo": f.date,
       "Empleado (SSO)": f.user_id,
-      "Nro. Factura": f.nro_factura,
-      "Estacionamiento": f.nombre_estacionamiento || f.estacionamiento || "Sin nombre",
-      "Lugar": f.lugar || "Sin lugar",
-      "Monto": Number(f.monto),
+      "Nro. Factura": f.invoice_number,
+      "Estacionamiento": f.parking_name || "Sin nombre",
+      "Lugar": f.location || "Sin lugar",
+      "Monto": Number(f.amount),
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(dataToExport);
@@ -405,22 +367,22 @@ export default function RrhhDashboard() {
                       <tr key={i} className="hover:bg-slate-50/80 transition-colors group">
                         <td className="px-6 py-4 text-slate-600 font-medium">
                            <div className="flex flex-col items-start">
-                             <span>{new Date(f.fecha + "T12:00:00").toLocaleDateString("es-ES")}</span>
-                             {f.tipo_vehiculo === "moto" ? (
+                             <span>{new Date(f.date + "T12:00:00").toLocaleDateString("es-ES")}</span>
+                             {f.vehicle_type === "moto" ? (
                                <span className="inline-flex items-center gap-1 text-[10px] bg-red-100 text-brand-red px-2 py-0.5 rounded-full font-bold mt-1 w-max"><Bike className="w-3 h-3"/> Moto</span>
                              ) : (
                                <span className="inline-flex items-center gap-1 text-[10px] bg-blue-100 text-brand-blue px-2 py-0.5 rounded-full font-bold mt-1 w-max"><Car className="w-3 h-3"/> Carro</span>
                              )}
-                             <span className="text-xs font-semibold text-slate-700 mt-1">{f.nombre_estacionamiento || f.estacionamiento || "Sin nombre"}</span>
-                             <span className="text-[11px] text-slate-400">{f.lugar || "Sin lugar"}</span>
+                             <span className="text-xs font-semibold text-slate-700 mt-1">{f.parking_name || "Sin nombre"}</span>
+                             <span className="text-[11px] text-slate-400">{f.location || "Sin lugar"}</span>
                            </div>
                         </td>
-                        <td className="px-6 py-4 font-mono font-medium text-slate-500">{f.nro_factura}</td>
+                        <td className="px-6 py-4 font-mono font-medium text-slate-500">{f.invoice_number}</td>
                         <td className="px-6 py-4 text-right">
-                          <p className="font-bold text-emerald-600">Bs. {Number(f.monto).toFixed(2)}</p>
+                          <p className="font-bold text-emerald-600">Bs. {Number(f.amount).toFixed(2)}</p>
                         </td>
                         <td className="px-6 py-4 text-right">
-                          <p className="text-sm font-bold text-slate-500">${f.monto_usd ? Number(f.monto_usd).toFixed(2) : (Number(f.monto) / bcvRate).toFixed(2)}</p>
+                          <p className="text-sm font-bold text-slate-500">${(Number(f.amount) / bcvRate).toFixed(2)}</p>
                         </td>
                         <td className="px-6 py-4 flex items-center justify-center gap-2">
                           {f.image_url ? (
@@ -512,34 +474,34 @@ export default function RrhhDashboard() {
             <form onSubmit={handleEditSubmit} className="space-y-4">
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Fecha</label>
-                <input type="date" required value={editingFactura.fecha} onChange={(e) => setEditingFactura({ ...editingFactura, fecha: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-brand-blue text-sm" />
+                <input type="date" required value={editingFactura.date || ""} onChange={(e) => setEditingFactura({ ...editingFactura, date: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-brand-blue text-sm" />
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Nombre del Estacionamiento</label>
-                <input type="text" value={editingFactura.nombre_estacionamiento || editingFactura.estacionamiento || ""} onChange={(e) => setEditingFactura({ ...editingFactura, estacionamiento: e.target.value, nombre_estacionamiento: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-brand-blue text-sm" />
+                <input type="text" value={editingFactura.parking_name || ""} onChange={(e) => setEditingFactura({ ...editingFactura, parking_name: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-brand-blue text-sm" />
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Lugar</label>
-                <input type="text" value={editingFactura.lugar || ""} onChange={(e) => setEditingFactura({ ...editingFactura, lugar: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-brand-blue text-sm" />
+                <input type="text" value={editingFactura.location || ""} onChange={(e) => setEditingFactura({ ...editingFactura, location: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-brand-blue text-sm" />
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Nro. de Factura</label>
-                <input type="text" required value={editingFactura.nro_factura} onChange={(e) => setEditingFactura({ ...editingFactura, nro_factura: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-brand-blue text-sm font-mono" />
+                <input type="text" required value={editingFactura.invoice_number || ""} onChange={(e) => setEditingFactura({ ...editingFactura, invoice_number: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-brand-blue text-sm font-mono" />
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tipo de Vehículo</label>
                 <div className="flex gap-2">
-                  <button type="button" onClick={() => setEditingFactura({...editingFactura, tipo_vehiculo: "carro"})} className={`flex-1 py-2 px-3 rounded-lg border flex items-center justify-center gap-1.5 transition-all font-bold text-xs ${editingFactura.tipo_vehiculo === "carro" ? "border-brand-blue bg-brand-blue/5 text-brand-blue" : "border-slate-200 text-slate-500"}`}>
+                  <button type="button" onClick={() => setEditingFactura({...editingFactura, vehicle_type: "carro"})} className={`flex-1 py-2 px-3 rounded-lg border flex items-center justify-center gap-1.5 transition-all font-bold text-xs ${editingFactura.vehicle_type === "carro" ? "border-brand-blue bg-brand-blue/5 text-brand-blue" : "border-slate-200 text-slate-500"}`}>
                     <Car className="w-4 h-4" /> Carro
                   </button>
-                  <button type="button" onClick={() => setEditingFactura({...editingFactura, tipo_vehiculo: "moto"})} className={`flex-1 py-2 px-3 rounded-lg border flex items-center justify-center gap-1.5 transition-all font-bold text-xs ${editingFactura.tipo_vehiculo === "moto" ? "border-brand-blue bg-brand-blue/5 text-brand-blue" : "border-slate-200 text-slate-500"}`}>
+                  <button type="button" onClick={() => setEditingFactura({...editingFactura, vehicle_type: "moto"})} className={`flex-1 py-2 px-3 rounded-lg border flex items-center justify-center gap-1.5 transition-all font-bold text-xs ${editingFactura.vehicle_type === "moto" ? "border-brand-blue bg-brand-blue/5 text-brand-blue" : "border-slate-200 text-slate-500"}`}>
                     <Bike className="w-4 h-4" /> Moto
                   </button>
                 </div>
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Monto (Bs.)</label>
-                <input type="number" step="0.01" required value={editingFactura.monto} onChange={(e) => setEditingFactura({ ...editingFactura, monto: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-brand-blue text-sm font-semibold" />
+                <input type="number" step="0.01" required value={editingFactura.amount || ""} onChange={(e) => setEditingFactura({ ...editingFactura, amount: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-brand-blue text-sm font-semibold" />
               </div>
               
               <div className="pt-2 flex gap-2">

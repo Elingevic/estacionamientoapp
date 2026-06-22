@@ -33,40 +33,36 @@ export default async function ReportePage({
       sql = `
         SELECT 
           id, 
-          TO_CHAR(fecha, 'YYYY-MM-DD') as fecha, 
-          nro_factura, 
-          monto, 
+          TO_CHAR(date, 'YYYY-MM-DD') as date, 
+          invoice_number, 
+          amount, 
           user_id, 
           image_url, 
-          nombre_estacionamiento, 
-          lugar, 
-          tipo_vehiculo, 
-          tasa_usd, 
-          monto_usd, 
-          correlativo_reporte 
-        FROM facturas 
-        WHERE fecha >= $1 AND fecha <= $2 AND user_id ILIKE $3
-        ORDER BY fecha ASC, id ASC
+          parking_name, 
+          location, 
+          vehicle_type, 
+          report_sequence 
+        FROM invoices 
+        WHERE date >= $1 AND date <= $2 AND user_id ILIKE $3
+        ORDER BY date ASC, id ASC
       `;
       params = [start, end, `%${emailFilter}%`];
     } else {
       sql = `
         SELECT 
           id, 
-          TO_CHAR(fecha, 'YYYY-MM-DD') as fecha, 
-          nro_factura, 
-          monto, 
+          TO_CHAR(date, 'YYYY-MM-DD') as date, 
+          invoice_number, 
+          amount, 
           user_id, 
           image_url, 
-          nombre_estacionamiento, 
-          lugar, 
-          tipo_vehiculo, 
-          tasa_usd, 
-          monto_usd, 
-          correlativo_reporte 
-        FROM facturas 
-        WHERE fecha >= $1 AND fecha <= $2 
-        ORDER BY fecha ASC, id ASC
+          parking_name, 
+          location, 
+          vehicle_type, 
+          report_sequence 
+        FROM invoices 
+        WHERE date >= $1 AND date <= $2 
+        ORDER BY date ASC, id ASC
       `;
       params = [start, end];
     }
@@ -74,20 +70,18 @@ export default async function ReportePage({
     sql = `
       SELECT 
         id, 
-        TO_CHAR(fecha, 'YYYY-MM-DD') as fecha, 
-        nro_factura, 
-        monto, 
+        TO_CHAR(date, 'YYYY-MM-DD') as date, 
+        invoice_number, 
+        amount, 
         user_id, 
         image_url, 
-        nombre_estacionamiento, 
-        lugar, 
-        tipo_vehiculo, 
-        tasa_usd, 
-        monto_usd, 
-        correlativo_reporte 
-      FROM facturas 
-      WHERE user_id = $1 AND fecha >= $2 AND fecha <= $3 
-      ORDER BY fecha ASC, id ASC
+        parking_name, 
+        location, 
+        vehicle_type, 
+        report_sequence 
+      FROM invoices 
+      WHERE user_id = $1 AND date >= $2 AND date <= $3 
+      ORDER BY date ASC, id ASC
     `;
     params = [session.user.email, start, end];
   }
@@ -106,11 +100,11 @@ export default async function ReportePage({
   let total_monto = 0;
 
   facturas?.forEach(f => {
-    const key = `${f.fecha}-${f.nro_factura}`;
+    const key = `${f.date}-${f.invoice_number}`;
     if (!seenFacturas.has(key)) {
       seenFacturas.add(key);
       uniqueFacturas.push(f);
-      total_monto += Number(f.monto);
+      total_monto += Number(f.amount);
     }
   });
 
@@ -126,8 +120,8 @@ export default async function ReportePage({
   if (facturaIds.length > 0) {
     try {
       const sqlUpdate = `
-        UPDATE facturas 
-        SET correlativo_reporte = $1 
+        UPDATE invoices 
+        SET report_sequence = $1 
         WHERE id = ANY($2::int[])
       `;
       await query(sqlUpdate, [correlativo, facturaIds]);
@@ -208,15 +202,15 @@ export default async function ReportePage({
             </thead>
             <tbody>
               {uniqueFacturas.map((f, i) => {
-                const [y, m, d] = f.fecha.split("-");
+                const [y, m, d] = f.date.split("-");
                 const formattedDate = `${d}/${m}/${y}`;
                 return (
                   <tr key={i} className="hover:bg-gray-50">
                     <td className="border border-gray-400 py-2 px-3">{formattedDate}</td>
-                    <td className="border border-gray-400 py-2 px-3">{f.nro_factura}</td>
-                    <td className="border border-gray-400 py-2 px-3">{f.nombre_estacionamiento || f.estacionamiento || "No especificado"}</td>
-                    <td className="border border-gray-400 py-2 px-3">{f.lugar || "No especificado"}</td>
-                    <td className="border border-gray-400 py-2 px-3 font-medium">Bs. {numberFormat.format(Number(f.monto))}</td>
+                    <td className="border border-gray-400 py-2 px-3">{f.invoice_number}</td>
+                    <td className="border border-gray-400 py-2 px-3">{f.parking_name || "No especificado"}</td>
+                    <td className="border border-gray-400 py-2 px-3">{f.location || "No especificado"}</td>
+                    <td className="border border-gray-400 py-2 px-3 font-medium">Bs. {numberFormat.format(Number(f.amount))}</td>
                   </tr>
                 );
               })}

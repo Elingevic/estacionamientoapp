@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "../auth/[...nextauth]/route";
 import { query } from "../../../lib/db";
 
-// GET: Obtener facturas filtradas por rango de fecha y rol
+// GET: Obtener facturas (invoices) filtradas por rango de fecha y rol
 export async function GET(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -27,42 +27,38 @@ export async function GET(req: NextRequest) {
       sql = `
         SELECT 
           id, 
-          TO_CHAR(fecha, 'YYYY-MM-DD') as fecha, 
-          nro_factura, 
-          monto, 
-          user_id, 
+          user_id,
+          TO_CHAR(date, 'YYYY-MM-DD') as date, 
+          invoice_number, 
+          parking_name, 
+          location, 
+          amount, 
           image_url, 
-          nombre_estacionamiento, 
-          lugar, 
-          tipo_vehiculo, 
-          tasa_usd, 
-          monto_usd, 
-          correlativo_reporte, 
+          vehicle_type, 
+          report_sequence, 
           created_at 
-        FROM facturas 
-        WHERE fecha >= $1 AND fecha <= $2 
-        ORDER BY fecha DESC, id DESC
+        FROM invoices 
+        WHERE date >= $1 AND date <= $2 
+        ORDER BY date DESC, id DESC
       `;
       params = [start, end];
     } else {
       sql = `
         SELECT 
           id, 
-          TO_CHAR(fecha, 'YYYY-MM-DD') as fecha, 
-          nro_factura, 
-          monto, 
-          user_id, 
+          user_id,
+          TO_CHAR(date, 'YYYY-MM-DD') as date, 
+          invoice_number, 
+          parking_name, 
+          location, 
+          amount, 
           image_url, 
-          nombre_estacionamiento, 
-          lugar, 
-          tipo_vehiculo, 
-          tasa_usd, 
-          monto_usd, 
-          correlativo_reporte, 
+          vehicle_type, 
+          report_sequence, 
           created_at 
-        FROM facturas 
-        WHERE user_id = $1 AND fecha >= $2 AND fecha <= $3 
-        ORDER BY fecha DESC, id DESC
+        FROM invoices 
+        WHERE user_id = $1 AND date >= $2 AND date <= $3 
+        ORDER BY date DESC, id DESC
       `;
       params = [session.user.email, start, end];
     }
@@ -75,7 +71,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST: Registrar nueva factura
+// POST: Registrar nueva factura (invoice)
 export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -85,48 +81,42 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
     const {
-      fecha,
-      nro_factura,
-      monto,
+      date,
+      invoice_number,
+      amount,
       image_url,
-      nombre_estacionamiento,
-      lugar,
-      tipo_vehiculo,
-      tasa_usd,
-      monto_usd
+      parking_name,
+      location,
+      vehicle_type
     } = body;
 
-    if (!fecha || !nro_factura || monto === undefined) {
+    if (!date || !invoice_number || amount === undefined) {
       return NextResponse.json({ error: "Datos incompletos" }, { status: 400 });
     }
 
     const sql = `
-      INSERT INTO facturas (
-        fecha, 
-        nro_factura, 
-        monto, 
-        user_id, 
+      INSERT INTO invoices (
+        user_id,
+        date, 
+        invoice_number, 
+        parking_name, 
+        location, 
+        amount, 
         image_url, 
-        nombre_estacionamiento, 
-        lugar, 
-        tipo_vehiculo, 
-        tasa_usd, 
-        monto_usd
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-      RETURNING *, TO_CHAR(fecha, 'YYYY-MM-DD') as fecha
+        vehicle_type
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      RETURNING *, TO_CHAR(date, 'YYYY-MM-DD') as date
     `;
     
     const params = [
-      fecha,
-      nro_factura,
-      monto,
       session.user.email,
+      date,
+      invoice_number,
+      parking_name || null,
+      location || null,
+      amount,
       image_url || null,
-      nombre_estacionamiento || null,
-      lugar || null,
-      tipo_vehiculo || null,
-      tasa_usd || null,
-      monto_usd || null
+      vehicle_type || null
     ];
 
     const res = await query(sql, params);
@@ -137,7 +127,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// PUT: Actualizar factura existente
+// PUT: Actualizar factura existente (invoice)
 export async function PUT(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -148,15 +138,14 @@ export async function PUT(req: NextRequest) {
     const body = await req.json();
     const {
       id,
-      fecha,
-      nro_factura,
-      monto,
-      nombre_estacionamiento,
-      lugar,
-      tipo_vehiculo,
-      tasa_usd,
-      monto_usd,
-      correlativo_reporte
+      date,
+      invoice_number,
+      parking_name,
+      location,
+      amount,
+      image_url,
+      vehicle_type,
+      report_sequence
     } = body;
 
     if (!id) {
@@ -175,15 +164,14 @@ export async function PUT(req: NextRequest) {
       }
     };
 
-    addField("fecha", fecha);
-    addField("nro_factura", nro_factura);
-    addField("monto", monto);
-    addField("nombre_estacionamiento", nombre_estacionamiento);
-    addField("lugar", lugar);
-    addField("tipo_vehiculo", tipo_vehiculo);
-    addField("tasa_usd", tasa_usd);
-    addField("monto_usd", monto_usd);
-    addField("correlativo_reporte", correlativo_reporte);
+    addField("date", date);
+    addField("invoice_number", invoice_number);
+    addField("parking_name", parking_name);
+    addField("location", location);
+    addField("amount", amount);
+    addField("image_url", image_url);
+    addField("vehicle_type", vehicle_type);
+    addField("report_sequence", report_sequence);
 
     if (fields.length === 0) {
       return NextResponse.json({ error: "No hay campos para actualizar" }, { status: 400 });
@@ -191,10 +179,10 @@ export async function PUT(req: NextRequest) {
 
     values.push(id);
     const sql = `
-      UPDATE facturas 
+      UPDATE invoices 
       SET ${fields.join(", ")} 
       WHERE id = $${paramIndex}
-      RETURNING *, TO_CHAR(fecha, 'YYYY-MM-DD') as fecha
+      RETURNING *, TO_CHAR(date, 'YYYY-MM-DD') as date
     `;
 
     const res = await query(sql, values);
