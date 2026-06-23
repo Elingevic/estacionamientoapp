@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useSession, signIn, signOut } from "next-auth/react";
 import Tesseract from "tesseract.js";
-import { Camera, FileText, Loader2, CheckCircle2, UploadCloud, LogOut, Calendar, Users, Building2, Receipt, Car, Bike, BarChart3, Printer, ShieldAlert } from "lucide-react";
+import { Camera, FileText, Loader2, CheckCircle2, UploadCloud, LogOut, Calendar, Users, Building2, Receipt, Car, Bike, BarChart3, Printer, ShieldAlert, Pencil } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -503,10 +503,18 @@ export default function Home() {
                         </div>
                       </div>
                       <div className="text-right flex flex-col justify-between items-end self-stretch">
-                        <div>
+                        <div className="flex flex-col items-end">
                           <p className="text-sm font-bold text-slate-800">Bs. {Number(f.amount).toFixed(2)}</p>
                           <p className="text-xs font-bold text-emerald-600">≈ ${itemUsd.toFixed(2)}</p>
                         </div>
+                        {!f.report_sequence && (
+                          <button
+                            onClick={() => setEditingFactura(f)}
+                            className="mt-2 text-xs font-bold text-slate-400 hover:text-brand-blue flex items-center gap-1 transition-colors bg-white hover:bg-blue-50 px-2 py-1 rounded-md border border-slate-200"
+                          >
+                            <Pencil className="w-3 h-3" /> Editar
+                          </button>
+                        )}
                       </div>
                     </div>
                   );
