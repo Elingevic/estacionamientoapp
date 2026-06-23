@@ -245,11 +245,10 @@ export default function RrhhDashboard() {
             const clientId = "sudeparking";
             const idToken = (session as any)?.id_token;
             
-            let logoutUrl = `${keycloakIssuer}/protocol/openid-connect/logout?client_id=${clientId}&post_logout_redirect_uri=${encodeURIComponent("http://172.16.205.33:8080")}`;
+            let logoutUrl = `${keycloakIssuer}/protocol/openid-connect/logout?client_id=${clientId}&post_logout_redirect_uri=${encodeURIComponent(window.location.origin)}`;
             if (idToken) {
               logoutUrl += `&id_token_hint=${idToken}`;
             }
-            logoutUrl += `&redirect_uri=${encodeURIComponent("http://172.16.205.33:8080")}`;
             
             await signOut({ callbackUrl: logoutUrl });
           }} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-xl border-2 border-slate-200 text-slate-600 font-bold hover:bg-slate-50 transition-all">

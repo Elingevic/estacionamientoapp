@@ -288,7 +288,7 @@ export default function Home() {
       <div className="max-w-md mx-auto space-y-6 py-4">
         
         {isRrhh && (
-          <div className="bg-emerald-600 rounded-2xl p-4 flex items-center justify-between text-white shadow-lg shadow-emerald-600/20">
+          <div className="bg-emerald-600 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-white shadow-lg shadow-emerald-600/20">
             <div className="flex items-center gap-3">
               <div className="bg-white/20 p-2 rounded-lg">
                 <ShieldAlert className="w-5 h-5" />
@@ -304,12 +304,12 @@ export default function Home() {
           </div>
         )}
 
-        <header className="flex justify-between items-center bg-brand-blue p-5 rounded-2xl shadow-xl shadow-brand-blue/20">
+        <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-brand-blue p-5 rounded-2xl shadow-xl shadow-brand-blue/20">
           <div className="text-white">
             <h1 className="text-xl font-bold flex items-center gap-2"><Building2 className="w-5 h-5"/> SudeParking</h1>
             <p className="text-xs text-blue-200 mt-1 truncate w-48 opacity-90">{session?.user?.name || session?.user?.email}</p>
           </div>
-          <div className="flex gap-2 flex-wrap justify-end">
+          <div className="flex gap-2 flex-wrap w-full sm:w-auto justify-end">
             <Link href="/dashboard" className="flex items-center gap-2 px-4 py-2.5 bg-white/10 text-white rounded-xl hover:bg-white/20 transition font-bold text-sm">
               <BarChart3 className="w-5 h-5" /> Estadísticas
             </Link>
@@ -318,11 +318,10 @@ export default function Home() {
               const clientId = "sudeparking";
               const idToken = (session as any)?.id_token;
               
-              let logoutUrl = `${keycloakIssuer}/protocol/openid-connect/logout?client_id=${clientId}&post_logout_redirect_uri=${encodeURIComponent("http://172.16.205.33:8080")}`;
+              let logoutUrl = `${keycloakIssuer}/protocol/openid-connect/logout?client_id=${clientId}&post_logout_redirect_uri=${encodeURIComponent(window.location.origin)}`;
               if (idToken) {
                 logoutUrl += `&id_token_hint=${idToken}`;
               }
-              logoutUrl += `&redirect_uri=${encodeURIComponent("http://172.16.205.33:8080")}`;
               
               await signOut({ callbackUrl: logoutUrl });
             }} className="p-2.5 bg-black/20 text-white rounded-xl hover:bg-black/30 transition">

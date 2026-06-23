@@ -104,6 +104,11 @@ export async function GET(request: Request) {
       }
     });
 
+    // Ordenar explícitamente de forma cronológica por fecha
+    uniqueFacturas.sort((a, b) => {
+      return new Date(a.date).getTime() - new Date(b.date).getTime();
+    });
+
     const facturasFormat = uniqueFacturas.map((f) => {
       total_monto += Number(f.amount);
       
