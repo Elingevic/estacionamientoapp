@@ -94,6 +94,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Datos incompletos" }, { status: 400 });
     }
 
+    // Verificar si ya existe una factura en la misma fecha para este usuario
+    const checkSql = `SELECT id FROM invoices WHERE user_id = $1 AND date = $2 LIMIT 1`;
+    const checkRes = await query(checkSql, [session.user.email, date]);
+    
+    if (checkRes.rows && checkRes.rows.length > 0) {
+      return NextResponse.json({ error: "Ya tienes una factura registrada con esta fecha. Solo se permite una por día." }, { status: 400 });
+    }
+
     const sql = `
       INSERT INTO invoices (
         user_id,
@@ -150,6 +158,20 @@ export async function PUT(req: NextRequest) {
 
     if (!id) {
       return NextResponse.json({ error: "Falta ID de factura" }, { status: 400 });
+    }
+
+    if (date) {
+      // Obtener el dueño de la factura para validar conflictos
+      const ownerRes = await query("SELECT user_id FROM invoices WHERE id = $1 LIMIT 1", [id]);
+      if (ownerRes.rows.length > 0) {
+        const ownerEmail = ownerRes.rows[0].user_id;
+        const checkSql = `SELECT id FROM invoices WHERE user_id = $1 AND date = $2 AND id != $3 LIMIT 1`;
+        const checkRes = await query(checkSql, [ownerEmail, date, id]);
+        
+        if (checkRes.rows && checkRes.rows.length > 0) {
+          return NextResponse.json({ error: "Ya existe otra factura registrada para esta fecha. Solo se permite una por día." }, { status: 400 });
+        }
+      }
     }
 
     // Construir actualización dinámica
