@@ -14,34 +14,56 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const start = searchParams.get("start");
     const end = searchParams.get("end");
-
-    if (!start || !end) {
-      return NextResponse.json({ error: "Faltan parámetros start y end" }, { status: 400 });
-    }
+    const search = searchParams.get("search");
 
     const isRrhh = (session.user as any).role === "rrhh";
     let sql: string;
     let params: any[];
 
     if (isRrhh) {
-      sql = `
-        SELECT 
-          id, 
-          user_id,
-          TO_CHAR(date, 'YYYY-MM-DD') as date, 
-          invoice_number, 
-          parking_name, 
-          location, 
-          amount, 
-          image_url, 
-          vehicle_type, 
-          report_sequence, 
-          created_at 
-        FROM invoices 
-        WHERE date >= $1 AND date <= $2 
-        ORDER BY date DESC, id DESC
-      `;
-      params = [start, end];
+      if (search && search.length > 2) {
+        sql = `
+          SELECT 
+            id, 
+            user_id,
+            TO_CHAR(date, 'YYYY-MM-DD') as date, 
+            invoice_number, 
+            parking_name, 
+            location, 
+            amount, 
+            image_url, 
+            vehicle_type, 
+            report_sequence, 
+            created_at 
+          FROM invoices 
+          WHERE user_id ILIKE $1 OR invoice_number ILIKE $1 OR parking_name ILIKE $1
+          ORDER BY date DESC, id DESC
+          LIMIT 100
+        `;
+        params = [`%${search}%`];
+      } else {
+        if (!start || !end) {
+          return NextResponse.json({ error: "Faltan parámetros start y end" }, { status: 400 });
+        }
+        sql = `
+          SELECT 
+            id, 
+            user_id,
+            TO_CHAR(date, 'YYYY-MM-DD') as date, 
+            invoice_number, 
+            parking_name, 
+            location, 
+            amount, 
+            image_url, 
+            vehicle_type, 
+            report_sequence, 
+            created_at 
+          FROM invoices 
+          WHERE date >= $1 AND date <= $2 
+          ORDER BY date DESC, id DESC
+        `;
+        params = [start, end];
+      }
     } else {
       sql = `
         SELECT 

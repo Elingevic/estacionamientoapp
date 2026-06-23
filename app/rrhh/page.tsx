@@ -40,6 +40,7 @@ export default function RrhhDashboard() {
   const [bcvRate, setBcvRate] = useState<number>(587.40);
 
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
 
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const [exportType, setExportType] = useState<"general" | "individual">("general");
@@ -116,15 +117,24 @@ export default function RrhhDashboard() {
   const [selectedEmployee, setSelectedEmployee] = useState<string | null>(null);
 
   useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchTerm), 500);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  useEffect(() => {
     if (status === "authenticated") {
       fetchFacturas();
     }
-  }, [status, startDate, endDate]);
+  }, [status, startDate, endDate, debouncedSearch]);
 
   const fetchFacturas = async (silent = false) => {
     if (!silent) setLoading(true);
     try {
-      const res = await fetch(`/api/facturas?start=${startDate}&end=${endDate}`);
+      let url = `/api/facturas?start=${startDate}&end=${endDate}`;
+      if (debouncedSearch && debouncedSearch.length > 2) {
+        url = `/api/facturas?search=${encodeURIComponent(debouncedSearch)}`;
+      }
+      const res = await fetch(url);
       if (!res.ok) {
         throw new Error(await res.text());
       }
