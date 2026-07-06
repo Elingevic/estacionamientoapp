@@ -157,12 +157,10 @@ export async function GET(request: Request) {
       }
     }
 
-    // Inyectamos las variables dinámicas
     const userName = session.user.name || `${(session.user as any).given_name || ''} ${(session.user as any).family_name || ''}`.trim() || session.user.email;
     const userCedula = (session.user as any).cedula || "N/A (SSO)";
     let userCargo = (session.user as any).cargo || "Empleado";
 
-    // Si el cargo es un número (ej. "47"), consultamos la API de catálogos para obtener el nombre real
     if (userCargo && !isNaN(Number(userCargo))) {
       try {
         const res = await fetch(`http://172.16.205.33:8000/api/catalogs/position/?id=${userCargo}`, {

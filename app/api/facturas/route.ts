@@ -3,6 +3,11 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "../auth/[...nextauth]/route";
 import { query } from "../../../lib/db";
 
+const sanitizeInput = (str: any) => {
+  if (typeof str !== 'string') return str;
+  return str.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+};
+
 // GET: Obtener facturas (invoices) filtradas por rango de fecha y rol
 export async function GET(req: NextRequest) {
   try {
@@ -102,7 +107,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const {
+    let {
       date,
       invoice_number,
       amount,
@@ -112,8 +117,25 @@ export async function POST(req: NextRequest) {
       vehicle_type
     } = body;
 
+    parking_name = sanitizeInput(parking_name);
+    location = sanitizeInput(location);
+    invoice_number = sanitizeInput(invoice_number);
+    vehicle_type = sanitizeInput(vehicle_type);
+
     if (!date || !invoice_number || amount === undefined) {
       return NextResponse.json({ error: "Datos incompletos" }, { status: 400 });
+    }
+
+    if (typeof amount !== 'number' || isNaN(amount) || amount <= 0 || amount > 1000000000) {
+      return NextResponse.json({ error: "Monto inválido" }, { status: 400 });
+    }
+
+    const parsedDate = new Date(date);
+    const now = new Date();
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(now.getMonth() - 6);
+    if (parsedDate > now || parsedDate < sixMonthsAgo) {
+      return NextResponse.json({ error: "Fecha inválida: La fecha no puede ser futura o más antigua a 6 meses." }, { status: 400 });
     }
 
     // Verificar si ya existe una factura en la misma fecha para este usuario
@@ -124,12 +146,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Ya tienes una factura registrada con esta fecha. Solo se permite una por día." }, { status: 400 });
     }
 
-    // Verificar si ya existe una factura con el mismo número y monto para este usuario
-    const checkInvoiceSql = `SELECT id FROM invoices WHERE user_id = $1 AND invoice_number = $2 AND amount = $3 LIMIT 1`;
-    const checkInvoiceRes = await query(checkInvoiceSql, [session.user.email, invoice_number, amount]);
+    // Control de unicidad estricto: mismo usuario y mismo número de factura
+    const checkInvoiceSql = `SELECT id FROM invoices WHERE user_id = $1 AND invoice_number = $2 LIMIT 1`;
+    const checkInvoiceRes = await query(checkInvoiceSql, [session.user.email, invoice_number]);
     
     if (checkInvoiceRes.rows && checkInvoiceRes.rows.length > 0) {
-      return NextResponse.json({ error: "Ya tienes registrada una factura con este mismo número y monto." }, { status: 400 });
+      return NextResponse.json({ error: "Ya tienes registrada una factura con este mismo número." }, { status: 400 });
     }
 
     const sql = `
@@ -174,7 +196,7 @@ export async function PUT(req: NextRequest) {
     }
 
     const body = await req.json();
-    const {
+    let {
       id,
       date,
       invoice_number,
@@ -186,38 +208,64 @@ export async function PUT(req: NextRequest) {
       report_sequence
     } = body;
 
+    parking_name = sanitizeInput(parking_name);
+    location = sanitizeInput(location);
+    invoice_number = sanitizeInput(invoice_number);
+    vehicle_type = sanitizeInput(vehicle_type);
+
     if (!id) {
       return NextResponse.json({ error: "Falta ID de factura" }, { status: 400 });
     }
 
-    if (date || invoice_number || amount !== undefined) {
-      // Obtener el dueño de la factura para validar conflictos
-      const ownerRes = await query("SELECT user_id, TO_CHAR(date, 'YYYY-MM-DD') as date, invoice_number, amount FROM invoices WHERE id = $1 LIMIT 1", [id]);
-      if (ownerRes.rows.length > 0) {
-        const owner = ownerRes.rows[0];
-        const ownerEmail = owner.user_id;
-        
-        const targetDate = date !== undefined ? date : owner.date;
-        const targetInvoice = invoice_number !== undefined ? invoice_number : owner.invoice_number;
-        const targetAmount = amount !== undefined ? amount : owner.amount;
+    if (amount !== undefined) {
+      if (typeof amount !== 'number' || isNaN(amount) || amount <= 0 || amount > 1000000000) {
+        return NextResponse.json({ error: "Monto inválido" }, { status: 400 });
+      }
+    }
 
-        if (date) {
-          const checkSql = `SELECT id FROM invoices WHERE user_id = $1 AND date = $2 AND id != $3 LIMIT 1`;
-          const checkRes = await query(checkSql, [ownerEmail, targetDate, id]);
-          
-          if (checkRes.rows && checkRes.rows.length > 0) {
-            return NextResponse.json({ error: "Ya existe otra factura registrada para esta fecha. Solo se permite una por día." }, { status: 400 });
-          }
-        }
+    if (date !== undefined) {
+      const parsedDate = new Date(date);
+      const now = new Date();
+      const sixMonthsAgo = new Date();
+      sixMonthsAgo.setMonth(now.getMonth() - 6);
+      if (parsedDate > now || parsedDate < sixMonthsAgo) {
+        return NextResponse.json({ error: "Fecha inválida: La fecha no puede ser futura o más antigua a 6 meses." }, { status: 400 });
+      }
+    }
 
-        if (invoice_number || amount !== undefined) {
-          const checkInvoiceSql = `SELECT id FROM invoices WHERE user_id = $1 AND invoice_number = $2 AND amount = $3 AND id != $4 LIMIT 1`;
-          const checkInvoiceRes = await query(checkInvoiceSql, [ownerEmail, targetInvoice, targetAmount, id]);
-          
-          if (checkInvoiceRes.rows && checkInvoiceRes.rows.length > 0) {
-            return NextResponse.json({ error: "Ya tienes registrada una factura con este mismo número y monto." }, { status: 400 });
-          }
-        }
+    // Mitigación de IDOR (Obligatorio)
+    const ownerRes = await query("SELECT user_id, TO_CHAR(date, 'YYYY-MM-DD') as date, invoice_number FROM invoices WHERE id = $1 LIMIT 1", [id]);
+    if (ownerRes.rows.length === 0) {
+      return NextResponse.json({ error: "Factura no encontrada" }, { status: 404 });
+    }
+
+    const owner = ownerRes.rows[0];
+    const ownerEmail = owner.user_id;
+    const isRrhh = (session.user as any).role === "rrhh";
+
+    if (ownerEmail !== session.user.email && !isRrhh) {
+      return NextResponse.json({ error: "Acceso denegado: No puedes editar registros de otros usuarios" }, { status: 403 });
+    }
+
+    const targetDate = date !== undefined ? date : owner.date;
+    const targetInvoice = invoice_number !== undefined ? invoice_number : owner.invoice_number;
+
+    if (date) {
+      const checkSql = `SELECT id FROM invoices WHERE user_id = $1 AND date = $2 AND id != $3 LIMIT 1`;
+      const checkRes = await query(checkSql, [ownerEmail, targetDate, id]);
+      
+      if (checkRes.rows && checkRes.rows.length > 0) {
+        return NextResponse.json({ error: "Ya existe otra factura registrada para esta fecha. Solo se permite una por día." }, { status: 400 });
+      }
+    }
+
+    if (invoice_number !== undefined) {
+      // Control de unicidad estricto
+      const checkInvoiceSql = `SELECT id FROM invoices WHERE user_id = $1 AND invoice_number = $2 AND id != $3 LIMIT 1`;
+      const checkInvoiceRes = await query(checkInvoiceSql, [ownerEmail, targetInvoice, id]);
+      
+      if (checkInvoiceRes.rows && checkInvoiceRes.rows.length > 0) {
+        return NextResponse.json({ error: "Ya tienes registrada otra factura con este mismo número." }, { status: 400 });
       }
     }
 
