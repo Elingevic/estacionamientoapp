@@ -517,7 +517,7 @@ export default function RrhhDashboard() {
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Monto (Bs.)</label>
-                <input type="number" step="0.01" min="0.01" max="10000" required value={editingFactura.amount || ""} onChange={(e) => { const val = e.target.value; if (val.length <= 8 && (val === "" || parseFloat(val) <= 10000)) setEditingFactura({ ...editingFactura, amount: val }) }} onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity("El monto no puede superar los 10.000 Bs.")} onInput={(e) => (e.target as HTMLInputElement).setCustomValidity("")} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-brand-blue text-sm font-semibold" />
+                <input type="number" step="0.01" min="0.01" max={bcvRate ? bcvRate * 20 : 15000} required value={editingFactura.amount || ""} onChange={(e) => { const val = e.target.value; const maxMonto = bcvRate ? bcvRate * 20 : 15000; if (val.length <= 10 && (val === "" || parseFloat(val) <= maxMonto)) setEditingFactura({ ...editingFactura, amount: val }) }} onInvalid={(e) => { const maxMonto = bcvRate ? bcvRate * 20 : 15000; (e.target as HTMLInputElement).setCustomValidity(`El monto no puede superar los $20 USD (Bs. ${maxMonto.toFixed(2)})`); }} onInput={(e) => (e.target as HTMLInputElement).setCustomValidity("")} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-brand-blue text-sm font-semibold" />
               </div>
               
               <div className="pt-2 flex gap-2">
