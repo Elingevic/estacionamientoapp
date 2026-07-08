@@ -517,7 +517,7 @@ export default function RrhhDashboard() {
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Monto (Bs.)</label>
-                <input type="number" step="0.01" required value={editingFactura.amount || ""} onChange={(e) => setEditingFactura({ ...editingFactura, amount: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-brand-blue text-sm font-semibold" />
+                <input type="number" step="0.01" min="0.01" max="10000" required value={editingFactura.amount || ""} onChange={(e) => { if (e.target.value.length <= 8) setEditingFactura({ ...editingFactura, amount: e.target.value }) }} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-brand-blue text-sm font-semibold" />
               </div>
               
               <div className="pt-2 flex gap-2">

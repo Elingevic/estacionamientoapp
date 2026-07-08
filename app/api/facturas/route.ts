@@ -126,8 +126,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Datos incompletos" }, { status: 400 });
     }
 
-    if (typeof amount !== 'number' || isNaN(amount) || amount <= 0 || amount > 1000000000) {
-      return NextResponse.json({ error: "Monto inválido" }, { status: 400 });
+    if (typeof amount !== 'number' || isNaN(amount) || amount <= 0 || amount > 10000) {
+      return NextResponse.json({ error: "Monto inválido (Máximo 10,000 Bs)" }, { status: 400 });
     }
 
     const parsedDate = new Date(date);
@@ -218,8 +218,8 @@ export async function PUT(req: NextRequest) {
     }
 
     if (amount !== undefined) {
-      if (typeof amount !== 'number' || isNaN(amount) || amount <= 0 || amount > 1000000000) {
-        return NextResponse.json({ error: "Monto inválido" }, { status: 400 });
+      if (typeof amount !== 'number' || isNaN(amount) || amount <= 0 || amount > 10000) {
+        return NextResponse.json({ error: "Monto inválido (Máximo 10,000 Bs)" }, { status: 400 });
       }
     }
 

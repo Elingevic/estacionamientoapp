@@ -391,7 +391,7 @@ export default function Home() {
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Monto</label>
                 <div className="relative">
                   <span className="absolute left-4 top-3.5 font-bold text-slate-400">Bs.</span>
-                  <input type="number" step="0.01" required value={formData.monto} onChange={(e) => setFormData({ ...formData, monto: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-3.5 outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20 transition-all font-semibold text-lg text-slate-800" />
+                  <input type="number" step="0.01" min="0.01" max="10000" required value={formData.monto} onChange={(e) => { if (e.target.value.length <= 8) setFormData({ ...formData, monto: e.target.value }) }} className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-3.5 outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20 transition-all font-semibold text-lg text-slate-800" />
                 </div>
                 {bcvRate && formData.monto && (
                   <p className="text-xs text-emerald-600 font-bold mt-1 text-right">≈ ${(parseFloat(formData.monto) / bcvRate).toFixed(2)} USD</p>
@@ -569,7 +569,7 @@ export default function Home() {
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Monto (Bs.)</label>
-                <input type="number" step="0.01" required value={editingFactura.amount || ""} onChange={(e) => setEditingFactura({ ...editingFactura, amount: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-brand-blue text-sm font-semibold" />
+                <input type="number" step="0.01" min="0.01" max="10000" required value={editingFactura.amount || ""} onChange={(e) => { if (e.target.value.length <= 8) setEditingFactura({ ...editingFactura, amount: e.target.value }) }} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-brand-blue text-sm font-semibold" />
               </div>
               
               <div className="pt-2 flex gap-2">
