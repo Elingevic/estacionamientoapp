@@ -18,7 +18,7 @@ export async function GET(request: Request) {
     const start = searchParams.get("start");
     const end = searchParams.get("end");
     const emailFilter = searchParams.get("email");
-
+    
     if (!start || !end) {
       return NextResponse.json({ error: "Faltan fechas start y end" }, { status: 400 });
     }
@@ -104,7 +104,6 @@ export async function GET(request: Request) {
       }
     });
 
-    // Ordenar explícitamente de forma cronológica por fecha
     uniqueFacturas.sort((a, b) => {
       return new Date(a.date).getTime() - new Date(b.date).getTime();
     });
