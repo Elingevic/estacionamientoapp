@@ -3,7 +3,9 @@ import { ShieldAlert, Building2 } from "lucide-react";
 
 export default function AccesoDenegado() {
   const keycloakIssuer = process.env.KEYCLOAK_ISSUER || "http://172.16.205.33:8080/realms/sudeaseg";
-  const logoutUrl = `${keycloakIssuer}/protocol/openid-connect/logout?client_id=sudeparking&post_logout_redirect_uri=${encodeURIComponent("http://172.16.205.33:8080")}&redirect_uri=${encodeURIComponent("http://172.16.205.33:8080")}`;
+  const appUrl = process.env.NEXTAUTH_URL || "http://172.18.202.16:3000";
+  const logoutUrl = `${keycloakIssuer}/protocol/openid-connect/logout?client_id=sudeparking&post_logout_redirect_uri=${encodeURIComponent(appUrl + "/")}`;
+
 
   return (
     <main className="min-h-screen bg-slate-50 flex items-center justify-center p-4">

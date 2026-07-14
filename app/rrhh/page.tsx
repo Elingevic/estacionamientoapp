@@ -4,7 +4,8 @@ import { useState, useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { Download, Calendar, Search, ExternalLink, Activity, DollarSign, Receipt, AlertCircle, X, ShieldAlert, Loader2, Building2, FileText, LogOut, BarChart3, Car, Bike } from "lucide-react";
 import Link from "next/link";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
+import { saveAs } from "file-saver";
 
 export default function RrhhDashboard() {
   const { data: session, status } = useSession();
@@ -183,7 +184,7 @@ export default function RrhhDashboard() {
     setExportModalOpen(true);
   };
 
-  const handleExportConfirm = () => {
+  const handleExportConfirm = async () => {
     let dataSource = filteredFacturas;
     if (exportType === "individual") {
       dataSource = facturasPorEmpleado[exportEmployee] || [];
@@ -198,10 +199,19 @@ export default function RrhhDashboard() {
       "Monto": Number(f.amount),
     }));
 
-    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Facturas");
-    XLSX.writeFile(workbook, `Consolidado_Nomina_${exportType}_${startDate}_${endDate}.xlsx`);
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet("Facturas");
+    if (dataToExport.length > 0) {
+      worksheet.columns = Object.keys(dataToExport[0]).map((key) => ({
+        header: key,
+        key: key,
+        width: 20,
+      }));
+      worksheet.addRows(dataToExport);
+    }
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    saveAs(blob, `Consolidado_Nomina_${exportType}_${startDate}_${endDate}.xlsx`);
     setExportModalOpen(false);
   };
 

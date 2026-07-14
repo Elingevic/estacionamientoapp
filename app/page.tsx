@@ -277,7 +277,7 @@ export default function Home() {
     return (
       <div className="min-h-screen bg-brand-blue flex flex-col items-center justify-center text-white">
         <Loader2 className="w-10 h-10 animate-spin mb-4" />
-        <p className="font-medium animate-pulse text-blue-200">Conectando con SUDEASEG SSO...</p>
+        <p className="font-medium animate-pulse text-blue-200">Accediendo</p>
       </div>
     );
   }
@@ -314,13 +314,14 @@ export default function Home() {
               <BarChart3 className="w-5 h-5" /> Estadísticas
             </Link>
             <button onClick={async () => {
-              const keycloakIssuer = "http://172.16.205.33:8080/realms/sudeaseg";
-              const clientId = "sudeparking";
+              const keycloakIssuer = process.env.NEXT_PUBLIC_KEYCLOAK_ISSUER || "http://172.16.205.33:8080/realms/sudeaseg";
+              const clientId = process.env.NEXT_PUBLIC_KEYCLOAK_CLIENT_ID || "sudeparking";
               const idToken = (session as any)?.id_token;
               
-              let logoutUrl = `${keycloakIssuer}/protocol/openid-connect/logout?client_id=${clientId}&post_logout_redirect_uri=${encodeURIComponent(window.location.origin)}`;
+              const postLogoutRedirectUri = `${window.location.origin}/`;
+              let logoutUrl = `${keycloakIssuer}/protocol/openid-connect/logout?client_id=${encodeURIComponent(clientId)}&post_logout_redirect_uri=${encodeURIComponent(postLogoutRedirectUri)}`;
               if (idToken) {
-                logoutUrl += `&id_token_hint=${idToken}`;
+                logoutUrl += `&id_token_hint=${encodeURIComponent(idToken)}`;
               }
               
               await signOut({ callbackUrl: logoutUrl });
