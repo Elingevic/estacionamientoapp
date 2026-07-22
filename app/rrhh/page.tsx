@@ -46,6 +46,16 @@ export default function RrhhDashboard() {
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const [exportType, setExportType] = useState<"general" | "individual">("general");
   const [exportEmployee, setExportEmployee] = useState<string>("");
+  const [exportWeek, setExportWeek] = useState(getInitialWeek);
+  const [exportStartDate, setExportStartDate] = useState(initStart);
+  const [exportEndDate, setExportEndDate] = useState(initEnd);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const formatName = (email: string) => {
+    if (!email) return "Desconocido";
+    const namePart = email.split('@')[0];
+    return namePart.split('.').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+  };
 
   const [exportEmployeeSearch, setExportEmployeeSearch] = useState("");
   const [showEmployeeDropdown, setShowEmployeeDropdown] = useState(false);
@@ -112,6 +122,27 @@ export default function RrhhDashboard() {
 
     setStartDate(targetMonday.toISOString().split('T')[0]);
     setEndDate(targetSunday.toISOString().split('T')[0]);
+  };
+
+  const handleExportWeekChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setExportWeek(val);
+    if (!val) return;
+    
+    const [year, week] = val.split('-W').map(Number);
+    const jan4 = new Date(year, 0, 4);
+    const dayOfJan4 = jan4.getDay() || 7;
+    const firstMonday = new Date(jan4);
+    firstMonday.setDate(jan4.getDate() - dayOfJan4 + 1);
+    
+    const targetMonday = new Date(firstMonday);
+    targetMonday.setDate(firstMonday.getDate() + (week - 1) * 7);
+    
+    const targetSunday = new Date(targetMonday);
+    targetSunday.setDate(targetMonday.getDate() + 6);
+
+    setExportStartDate(targetMonday.toISOString().split('T')[0]);
+    setExportEndDate(targetSunday.toISOString().split('T')[0]);
   };
   
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -181,38 +212,78 @@ export default function RrhhDashboard() {
     const initialEmp = selectedEmployee || "";
     setExportEmployee(initialEmp);
     setExportEmployeeSearch(initialEmp);
+    setExportWeek(selectedWeek);
+    setExportStartDate(startDate);
+    setExportEndDate(endDate);
     setExportModalOpen(true);
   };
 
   const handleExportConfirm = async () => {
-    let dataSource = filteredFacturas;
-    if (exportType === "individual") {
-      dataSource = facturasPorEmpleado[exportEmployee] || [];
-    }
+    setIsExporting(true);
+    try {
+      // Obtener datos frescos para la fecha seleccionada en el modal de exportación
+      const res = await fetch(`/api/facturas?start=${exportStartDate}&end=${exportEndDate}`);
+      if (!res.ok) throw new Error("Error fetching data for export");
+      const exportData = await res.json();
+      
+      let dataSource = exportData;
+      if (exportType === "individual" && exportEmployee) {
+        dataSource = exportData.filter((f: any) => f.user_id === exportEmployee);
+      }
 
-    const dataToExport = dataSource.map((f: any) => ({
-      "Fecha Escaneo": f.date,
-      "Empleado (SSO)": f.user_id,
-      "Nro. Factura": f.invoice_number,
-      "Estacionamiento": f.parking_name || "Sin nombre",
-      "Lugar": f.location || "Sin lugar",
-      "Monto": Number(f.amount),
-    }));
+      const workbook = new ExcelJS.Workbook();
+      
+      // Hoja de Resumen
+      const resumenSheet = workbook.addWorksheet("Resumen");
+      const porEmpleadoExport = dataSource.reduce((acc: any, f: any) => {
+        if (!acc[f.user_id]) acc[f.user_id] = [];
+        acc[f.user_id].push(f);
+        return acc;
+      }, {});
 
-    const workbook = new ExcelJS.Workbook();
-    const worksheet = workbook.addWorksheet("Facturas");
-    if (dataToExport.length > 0) {
-      worksheet.columns = Object.keys(dataToExport[0]).map((key) => ({
-        header: key,
-        key: key,
-        width: 20,
+      const dataResumen = Object.keys(porEmpleadoExport).map(email => {
+        const facts = porEmpleadoExport[email];
+        const totalBs = facts.reduce((sum: number, f: any) => sum + Number(f.amount), 0);
+        return {
+          "Empleado": formatName(email),
+          "Cantidad de Tickets": facts.length,
+          "Tipo de Cambio": bcvRate,
+          "Total Bs.": totalBs,
+          "Total USD": totalBs / bcvRate,
+        };
+      });
+
+      if (dataResumen.length > 0) {
+        resumenSheet.columns = Object.keys(dataResumen[0]).map(key => ({ header: key, key: key, width: 25 }));
+        resumenSheet.addRows(dataResumen);
+      }
+
+      // Hoja de Detalles
+      const detallesSheet = workbook.addWorksheet("Detalles");
+      const dataDetalles = dataSource.map((f: any) => ({
+        "Fecha Escaneo": f.date,
+        "Empleado": formatName(f.user_id),
+        "Nro. Factura": f.invoice_number,
+        "Tipo de Cambio": bcvRate,
+        "Monto Bs.": Number(f.amount),
+        "Monto USD": Number(f.amount) / bcvRate,
       }));
-      worksheet.addRows(dataToExport);
+
+      if (dataDetalles.length > 0) {
+        detallesSheet.columns = Object.keys(dataDetalles[0]).map(key => ({ header: key, key: key, width: 20 }));
+        detallesSheet.addRows(dataDetalles);
+      }
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      saveAs(blob, `Consolidado_Nomina_${exportType}_${exportStartDate}_${exportEndDate}.xlsx`);
+      setExportModalOpen(false);
+    } catch (error) {
+      console.error(error);
+      alert("Error al generar el archivo Excel");
+    } finally {
+      setIsExporting(false);
     }
-    const buffer = await workbook.xlsx.writeBuffer();
-    const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-    saveAs(blob, `Consolidado_Nomina_${exportType}_${startDate}_${endDate}.xlsx`);
-    setExportModalOpen(false);
   };
 
   if (status === "loading") {
@@ -427,7 +498,7 @@ export default function RrhhDashboard() {
                   ) : (
                     listaEmpleados.map((emp: any, i: number) => (
                       <tr key={i} className="hover:bg-slate-50/80 transition-colors group">
-                        <td className="px-6 py-4 font-bold text-slate-800">{emp.email}</td>
+                        <td className="px-6 py-4 font-bold text-slate-800">{formatName(emp.email)}</td>
                         <td className="px-6 py-4 text-center font-medium text-slate-600">
                           <span className="bg-slate-100 px-3 py-1 rounded-full text-xs font-bold text-slate-500">{emp.totalTickets} tickets</span>
                         </td>
@@ -549,7 +620,12 @@ export default function RrhhDashboard() {
               <Download className="w-5 h-5" /> Opciones de Exportación
             </h3>
             
-            <div className="space-y-4">
+              <div className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Semana a Exportar</label>
+                <input type="week" value={exportWeek} onChange={handleExportWeekChange} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-brand-blue text-sm font-medium" />
+              </div>
+
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tipo de Exportación</label>
                 <select value={exportType} onChange={e => setExportType(e.target.value as any)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-brand-blue text-sm font-medium">
@@ -563,7 +639,7 @@ export default function RrhhDashboard() {
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Buscar Empleado</label>
                   <input 
                     type="text" 
-                    placeholder="Escribe para buscar..."
+                    placeholder="Escribe para buscar (correo o nombre)..."
                     value={exportEmployeeSearch}
                     onChange={e => {
                       setExportEmployeeSearch(e.target.value);
@@ -576,21 +652,21 @@ export default function RrhhDashboard() {
                   {showEmployeeDropdown && (
                     <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl max-h-48 overflow-y-auto">
                       {listaEmpleados
-                        .filter(e => e.email.toLowerCase().includes(exportEmployeeSearch.toLowerCase()))
+                        .filter(e => e.email.toLowerCase().includes(exportEmployeeSearch.toLowerCase()) || formatName(e.email).toLowerCase().includes(exportEmployeeSearch.toLowerCase()))
                         .map(e => (
                           <div 
                             key={e.email} 
                             className="px-4 py-2.5 hover:bg-brand-blue/5 cursor-pointer text-sm font-medium text-slate-700 transition-colors border-b border-slate-50 last:border-0"
                             onClick={() => {
                               setExportEmployee(e.email);
-                              setExportEmployeeSearch(e.email);
+                              setExportEmployeeSearch(formatName(e.email));
                               setShowEmployeeDropdown(false);
                             }}
                           >
-                            {e.email}
+                            {formatName(e.email)} <span className="text-xs text-slate-400 block">{e.email}</span>
                           </div>
                       ))}
-                      {listaEmpleados.filter(e => e.email.toLowerCase().includes(exportEmployeeSearch.toLowerCase())).length === 0 && (
+                      {listaEmpleados.filter(e => e.email.toLowerCase().includes(exportEmployeeSearch.toLowerCase()) || formatName(e.email).toLowerCase().includes(exportEmployeeSearch.toLowerCase())).length === 0 && (
                         <div className="px-4 py-3 text-sm text-slate-500 italic text-center">No se encontraron resultados</div>
                       )}
                     </div>
@@ -600,8 +676,8 @@ export default function RrhhDashboard() {
               
               <div className="pt-4 flex gap-2">
                 <button type="button" onClick={() => setExportModalOpen(false)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold hover:bg-slate-50 text-sm transition-colors">Cancelar</button>
-                <button type="button" disabled={exportType === "individual" && !exportEmployee} onClick={handleExportConfirm} className="flex-1 py-2.5 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-700 shadow-md text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                  Descargar Excel
+                <button type="button" disabled={isExporting || (exportType === "individual" && !exportEmployee)} onClick={handleExportConfirm} className="flex-1 py-2.5 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-700 shadow-md text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                  {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Descargar Excel"}
                 </button>
               </div>
             </div>
