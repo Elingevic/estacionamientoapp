@@ -149,7 +149,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Fecha inválida: La fecha no puede ser futura o más antigua a 6 meses." }, { status: 400 });
     }
 
-    const userUuid = session.user.id;
+    const userUuid = (session.user as any).id;
     const userEmail = session.user.email;
     const userRole = (session.user as any).role || "empleado";
     const officeId = (session.user as any).office_id || null;

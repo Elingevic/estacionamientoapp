@@ -13,7 +13,7 @@
     "docxtemplater": "^3.68.7",
     "file-saver": "^2.0.5",
     "lucide-react": "^1.17.0",
-    "next": "16.2.9",
+    "next": "^16.2.12",
     "next-auth": "^4.24.14",
     "pg": "^8.22.0",
     "pizzip": "^3.2.0",
@@ -38,6 +38,7 @@
   },
   "overrides": {
     "postcss": "^8.5.15",
-    "uuid": "^11.1.0"
+    "uuid": "^11.1.0",
+    "sharp": "^0.35.3"
   }
 }
