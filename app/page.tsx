@@ -18,6 +18,7 @@ export default function Home() {
   const [step, setStep] = useState<"capture" | "review" | "success">("capture");
   const [ocrProgress, setOcrProgress] = useState<string>("");
   const [bcvRate, setBcvRate] = useState<number>(587.40);
+  const [infoModal, setInfoModal] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     fecha: new Date().toLocaleDateString("en-CA", { timeZone: "America/Caracas" }),
@@ -429,7 +430,7 @@ export default function Home() {
               <div className="flex items-center gap-2">
                 <div 
                   title="Al exportar el reporte, las facturas se marcarán como 'Procesadas' de forma permanente y ya no podrán ser editadas ni eliminadas." 
-                  onClick={() => alert("Al exportar el reporte, las facturas se marcarán como 'Procesadas' de forma permanente y ya no podrán ser editadas ni eliminadas.")}
+                  onClick={() => setInfoModal("Al exportar el reporte, las facturas se marcarán como 'Procesadas' de forma permanente y ya no podrán ser editadas ni eliminadas.")}
                   className="cursor-help group relative flex items-center justify-center"
                 >
                   <Info className="w-4 h-4 text-slate-400 hover:text-brand-blue transition-colors" />
@@ -527,7 +528,7 @@ export default function Home() {
                         ) : (
                           <button 
                             title="Esta factura ya fue exportada en un reporte y no puede ser modificada" 
-                            onClick={() => alert("Esta factura ya fue exportada en un reporte y no puede ser modificada.")}
+                            onClick={() => setInfoModal("Esta factura ya fue exportada en un reporte y no puede ser modificada.")}
                             className="mt-2 text-[10px] font-bold text-slate-400 flex items-center gap-1 bg-slate-50 hover:bg-slate-100 px-2 py-1 rounded-md border border-slate-200 cursor-help transition-colors"
                           >
                             <Lock className="w-3 h-3" /> Procesada
@@ -600,6 +601,28 @@ export default function Home() {
           </div>
         </div>
       )}
+
+      {/* MODAL DE INFORMACION */}
+      {infoModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="relative max-w-sm w-full bg-white rounded-3xl p-6 shadow-2xl border border-slate-100 text-center animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+            <div className="w-12 h-12 bg-blue-50 text-brand-blue rounded-full flex items-center justify-center mx-auto mb-4">
+              <Info className="w-6 h-6" />
+            </div>
+            <h3 className="text-lg font-bold text-slate-800 mb-2">Información</h3>
+            <p className="text-sm text-slate-500 font-medium mb-6 leading-relaxed">
+              {infoModal}
+            </p>
+            <button 
+              onClick={() => setInfoModal(null)} 
+              className="w-full bg-brand-blue hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-colors shadow-md"
+            >
+              Entendido
+            </button>
+          </div>
+        </div>
+      )}
+
     </main>
   );
 }
