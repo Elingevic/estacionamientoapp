@@ -516,7 +516,11 @@ export default function RrhhDashboard() {
                             Ver Detalles
                           </button>
                           <div className="flex items-center gap-2">
-                            <div title="Al exportar el reporte, las facturas del empleado se marcarán como 'Procesadas' de forma permanente y ya no podrán ser editadas ni eliminadas." className="cursor-help group relative flex items-center justify-center">
+                            <div 
+                              title="Al exportar el reporte, las facturas del empleado se marcarán como 'Procesadas' de forma permanente y ya no podrán ser editadas ni eliminadas." 
+                              onClick={() => alert("Al exportar el reporte, las facturas del empleado se marcarán como 'Procesadas' de forma permanente y ya no podrán ser editadas ni eliminadas.")}
+                              className="cursor-help group relative flex items-center justify-center"
+                            >
                               <Info className="w-4 h-4 text-slate-400 hover:text-brand-blue transition-colors" />
                             </div>
                             <button 

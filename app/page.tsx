@@ -427,7 +427,11 @@ export default function Home() {
                 <Receipt className="w-5 h-5"/> Mis Cargas ({myFacturas.length})
               </h3>
               <div className="flex items-center gap-2">
-                <div title="Al exportar el reporte, las facturas se marcarán como 'Procesadas' de forma permanente y ya no podrán ser editadas ni eliminadas." className="cursor-help group relative flex items-center justify-center">
+                <div 
+                  title="Al exportar el reporte, las facturas se marcarán como 'Procesadas' de forma permanente y ya no podrán ser editadas ni eliminadas." 
+                  onClick={() => alert("Al exportar el reporte, las facturas se marcarán como 'Procesadas' de forma permanente y ya no podrán ser editadas ni eliminadas.")}
+                  className="cursor-help group relative flex items-center justify-center"
+                >
                   <Info className="w-4 h-4 text-slate-400 hover:text-brand-blue transition-colors" />
                 </div>
                 <button 
@@ -521,12 +525,13 @@ export default function Home() {
                             <Pencil className="w-3 h-3" /> Editar
                           </button>
                         ) : (
-                          <div 
+                          <button 
                             title="Esta factura ya fue exportada en un reporte y no puede ser modificada" 
-                            className="mt-2 text-[10px] font-bold text-slate-400 flex items-center gap-1 bg-slate-50 px-2 py-1 rounded-md border border-slate-200 cursor-help"
+                            onClick={() => alert("Esta factura ya fue exportada en un reporte y no puede ser modificada.")}
+                            className="mt-2 text-[10px] font-bold text-slate-400 flex items-center gap-1 bg-slate-50 hover:bg-slate-100 px-2 py-1 rounded-md border border-slate-200 cursor-help transition-colors"
                           >
                             <Lock className="w-3 h-3" /> Procesada
-                          </div>
+                          </button>
                         )}
                       </div>
                     </div>
