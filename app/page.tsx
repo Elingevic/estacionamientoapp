@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useSession, signIn, signOut } from "next-auth/react";
 import Tesseract from "tesseract.js";
-import { Camera, FileText, Loader2, CheckCircle2, UploadCloud, LogOut, Calendar, Users, Building2, Receipt, Car, Bike, BarChart3, Printer, ShieldAlert, Pencil } from "lucide-react";
+import { Camera, FileText, Loader2, CheckCircle2, UploadCloud, LogOut, Calendar, Users, Building2, Receipt, Car, Bike, BarChart3, Printer, ShieldAlert, Pencil, Lock, Info } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -426,12 +426,17 @@ export default function Home() {
               <h3 className="text-lg font-bold text-brand-blue flex items-center gap-2">
                 <Receipt className="w-5 h-5"/> Mis Cargas ({myFacturas.length})
               </h3>
-              <button 
-                onClick={() => window.open(`/api/generar-reporte?start=${startDate}&end=${endDate}&email=${encodeURIComponent(session?.user?.email || "")}`, "_blank")}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-red text-white hover:bg-brand-darkred shadow-md transition-colors font-bold text-xs"
-              >
-                <FileText className="w-4 h-4" /> Exportar Word
-              </button>
+              <div className="flex items-center gap-2">
+                <div title="Al exportar el reporte, las facturas se marcarán como 'Procesadas' de forma permanente y ya no podrán ser editadas ni eliminadas." className="cursor-help group relative flex items-center justify-center">
+                  <Info className="w-4 h-4 text-slate-400 hover:text-brand-blue transition-colors" />
+                </div>
+                <button 
+                  onClick={() => window.open(`/api/generar-reporte?start=${startDate}&end=${endDate}&email=${encodeURIComponent(session?.user?.email || "")}`, "_blank")}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-red text-white hover:bg-brand-darkred shadow-md transition-colors font-bold text-xs"
+                >
+                  <FileText className="w-4 h-4" /> Exportar Word
+                </button>
+              </div>
             </div>
             
             <div className="flex gap-3">
@@ -508,13 +513,20 @@ export default function Home() {
                           <p className="text-sm font-bold text-slate-800">Bs. {Number(f.amount).toFixed(2)}</p>
                           <p className="text-xs font-bold text-emerald-600">≈ ${itemUsd.toFixed(2)}</p>
                         </div>
-                        {!f.report_sequence && (
+                        {!f.report_sequence ? (
                           <button
                             onClick={() => setEditingFactura(f)}
                             className="mt-2 text-xs font-bold text-slate-400 hover:text-brand-blue flex items-center gap-1 transition-colors bg-white hover:bg-blue-50 px-2 py-1 rounded-md border border-slate-200"
                           >
                             <Pencil className="w-3 h-3" /> Editar
                           </button>
+                        ) : (
+                          <div 
+                            title="Esta factura ya fue exportada en un reporte y no puede ser modificada" 
+                            className="mt-2 text-[10px] font-bold text-slate-400 flex items-center gap-1 bg-slate-50 px-2 py-1 rounded-md border border-slate-200 cursor-help"
+                          >
+                            <Lock className="w-3 h-3" /> Procesada
+                          </div>
                         )}
                       </div>
                     </div>

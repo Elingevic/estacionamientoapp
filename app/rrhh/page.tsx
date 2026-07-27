@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
-import { Download, Calendar, Search, ExternalLink, Activity, DollarSign, Receipt, AlertCircle, X, ShieldAlert, Loader2, Building2, FileText, LogOut, BarChart3, Car, Bike } from "lucide-react";
+import { Download, Calendar, Search, ExternalLink, Activity, DollarSign, Receipt, AlertCircle, X, ShieldAlert, Loader2, Building2, FileText, LogOut, BarChart3, Car, Bike, Pencil, Lock, Info } from "lucide-react";
 import Link from "next/link";
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
@@ -515,12 +515,17 @@ export default function RrhhDashboard() {
                           >
                             Ver Detalles
                           </button>
-                          <button 
-                            onClick={() => window.open(`/api/generar-reporte?start=${startDate}&end=${endDate}&email=${encodeURIComponent(emp.email)}`, "_blank")}
-                            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-brand-red text-white hover:bg-brand-darkred shadow-md transition-colors font-bold text-xs"
-                          >
-                            <FileText className="w-4 h-4" /> Word
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <div title="Al exportar el reporte, las facturas del empleado se marcarán como 'Procesadas' de forma permanente y ya no podrán ser editadas ni eliminadas." className="cursor-help group relative flex items-center justify-center">
+                              <Info className="w-4 h-4 text-slate-400 hover:text-brand-blue transition-colors" />
+                            </div>
+                            <button 
+                              onClick={() => window.open(`/api/generar-reporte?start=${startDate}&end=${endDate}&email=${encodeURIComponent(emp.email)}`, "_blank")}
+                              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-brand-red text-white hover:bg-brand-darkred shadow-md transition-colors font-bold text-xs"
+                            >
+                              <FileText className="w-4 h-4" /> Exportar Word
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))
