@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
             p.address as location, 
             i.amount, 
             i.image_url, 
-            v.description as vehicle_type, 
+            LOWER(v.description) as vehicle_type, 
             i.report_sequence, 
             i.created_at 
           FROM invoice i 
@@ -65,7 +65,7 @@ export async function GET(req: NextRequest) {
             p.address as location, 
             i.amount, 
             i.image_url, 
-            v.description as vehicle_type, 
+            LOWER(v.description) as vehicle_type, 
             i.report_sequence, 
             i.created_at 
           FROM invoice i 
@@ -88,7 +88,7 @@ export async function GET(req: NextRequest) {
           p.address as location, 
           i.amount, 
           i.image_url, 
-          v.description as vehicle_type, 
+          LOWER(v.description) as vehicle_type, 
           i.report_sequence, 
           i.created_at 
         FROM invoice i 
@@ -428,7 +428,7 @@ export async function PUT(req: NextRequest) {
         p.address as location, 
         i.amount, 
         i.image_url, 
-        v.description as vehicle_type, 
+        LOWER(v.description) as vehicle_type, 
         i.report_sequence, 
         i.created_at 
       FROM invoice i

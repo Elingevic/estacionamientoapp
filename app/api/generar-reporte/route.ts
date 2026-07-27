@@ -39,7 +39,7 @@ export async function GET(request: Request) {
             i.image_url, 
             p.description as parking_name, 
             p.address as location, 
-            v.description as vehicle_type, 
+            LOWER(v.description) as vehicle_type, 
             i.report_sequence 
           FROM invoice i 
           JOIN "user" u ON i.user_id = u.uuid
@@ -60,7 +60,7 @@ export async function GET(request: Request) {
             i.image_url, 
             p.description as parking_name, 
             p.address as location, 
-            v.description as vehicle_type, 
+            LOWER(v.description) as vehicle_type, 
             i.report_sequence 
           FROM invoice i 
           JOIN "user" u ON i.user_id = u.uuid
@@ -82,7 +82,7 @@ export async function GET(request: Request) {
           i.image_url, 
           p.description as parking_name, 
           p.address as location, 
-          v.description as vehicle_type, 
+          LOWER(v.description) as vehicle_type, 
           i.report_sequence 
         FROM invoice i 
         JOIN "user" u ON i.user_id = u.uuid
