@@ -31,56 +31,65 @@ export async function GET(request: Request) {
       if (emailFilter) {
         sql = `
           SELECT 
-            id, 
-            TO_CHAR(date, 'YYYY-MM-DD') as date, 
-            invoice_number, 
-            amount, 
-            user_id, 
-            image_url, 
-            parking_name, 
-            location, 
-            vehicle_type, 
-            report_sequence 
-          FROM invoices 
-          WHERE date >= $1 AND date <= $2 AND user_id ILIKE $3
-          ORDER BY date ASC, id ASC
+            i.id, 
+            TO_CHAR(i.issued_at, 'YYYY-MM-DD') as date, 
+            i.invoice_number, 
+            i.amount, 
+            u.email as user_id, 
+            i.image_url, 
+            p.description as parking_name, 
+            p.address as location, 
+            v.description as vehicle_type, 
+            i.report_sequence 
+          FROM invoice i 
+          JOIN "user" u ON i.user_id = u.uuid
+          LEFT JOIN parking_lot p ON i.parking_lot_id = p.id
+          LEFT JOIN vehicle_type v ON i.vehicle_type_id = v.id
+          WHERE i.issued_at >= $1 AND i.issued_at <= $2 AND u.email ILIKE $3
+          ORDER BY i.issued_at ASC, i.id ASC
         `;
         params = [start, end, `%${emailFilter}%`];
       } else {
         sql = `
           SELECT 
-            id, 
-            TO_CHAR(date, 'YYYY-MM-DD') as date, 
-            invoice_number, 
-            amount, 
-            user_id, 
-            image_url, 
-            parking_name, 
-            location, 
-            vehicle_type, 
-            report_sequence 
-          FROM invoices 
-          WHERE date >= $1 AND date <= $2 
-          ORDER BY date ASC, id ASC
+            i.id, 
+            TO_CHAR(i.issued_at, 'YYYY-MM-DD') as date, 
+            i.invoice_number, 
+            i.amount, 
+            u.email as user_id, 
+            i.image_url, 
+            p.description as parking_name, 
+            p.address as location, 
+            v.description as vehicle_type, 
+            i.report_sequence 
+          FROM invoice i 
+          JOIN "user" u ON i.user_id = u.uuid
+          LEFT JOIN parking_lot p ON i.parking_lot_id = p.id
+          LEFT JOIN vehicle_type v ON i.vehicle_type_id = v.id
+          WHERE i.issued_at >= $1 AND i.issued_at <= $2 
+          ORDER BY i.issued_at ASC, i.id ASC
         `;
         params = [start, end];
       }
     } else {
       sql = `
         SELECT 
-          id, 
-          TO_CHAR(date, 'YYYY-MM-DD') as date, 
-          invoice_number, 
-          amount, 
-          user_id, 
-          image_url, 
-          parking_name, 
-          location, 
-          vehicle_type, 
-          report_sequence 
-        FROM invoices 
-        WHERE user_id = $1 AND date >= $2 AND date <= $3 
-        ORDER BY date ASC, id ASC
+          i.id, 
+          TO_CHAR(i.issued_at, 'YYYY-MM-DD') as date, 
+          i.invoice_number, 
+          i.amount, 
+          u.email as user_id, 
+          i.image_url, 
+          p.description as parking_name, 
+          p.address as location, 
+          v.description as vehicle_type, 
+          i.report_sequence 
+        FROM invoice i 
+        JOIN "user" u ON i.user_id = u.uuid
+        LEFT JOIN parking_lot p ON i.parking_lot_id = p.id
+        LEFT JOIN vehicle_type v ON i.vehicle_type_id = v.id
+        WHERE u.email = $1 AND i.issued_at >= $2 AND i.issued_at <= $3 
+        ORDER BY i.issued_at ASC, i.id ASC
       `;
       params = [session.user.email, start, end];
     }
@@ -146,9 +155,9 @@ export async function GET(request: Request) {
     if (facturaIds.length > 0) {
       try {
         const sqlUpdate = `
-          UPDATE invoices 
+          UPDATE invoice 
           SET report_sequence = $1 
-          WHERE id = ANY($2::int[])
+          WHERE id = ANY($2::uuid[])
         `;
         await query(sqlUpdate, [correlativo, facturaIds]);
       } catch (updateError) {
