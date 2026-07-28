@@ -184,6 +184,16 @@ export async function GET(request: Request) {
       } catch (err) {
         console.error("Error consultando el catálogo de cargos:", err);
       }
+      
+      // Fallback: si después del fetch sigue siendo un número, no lo imprimimos crudo.
+      // Puedes añadir más cargos aquí si los descubres.
+      const CARGOS_MAP: Record<string, string> = {
+        "47": "Especialista / Analista"
+      };
+      
+      if (!isNaN(Number(userCargo))) {
+        userCargo = CARGOS_MAP[String(userCargo)] || "Empleado";
+      }
     }
 
     doc.render({

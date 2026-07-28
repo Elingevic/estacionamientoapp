@@ -533,6 +533,7 @@ export default function RrhhDashboard() {
                           </div>
                         </td>
                       </tr>
+                      
                     ))
                   )}
                 </tbody>

@@ -165,6 +165,15 @@ export default async function ReportePage({
     } catch (err) {
       console.error("Error consultando el catálogo de cargos:", err);
     }
+    
+    // Fallback: si después del fetch sigue siendo un número, no lo imprimimos crudo.
+    const CARGOS_MAP: Record<string, string> = {
+      "47": "Especialista / Analista"
+    };
+    
+    if (!isNaN(Number(userCargo))) {
+      userCargo = CARGOS_MAP[String(userCargo)] || "Empleado";
+    }
   }
 
   const currentDate = new Date().toLocaleDateString("es-ES", { timeZone: "America/Caracas" });
