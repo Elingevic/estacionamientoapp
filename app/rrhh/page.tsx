@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { Download, Calendar, Search, ExternalLink, Activity, DollarSign, Receipt, AlertCircle, X, ShieldAlert, Loader2, Building2, FileText, LogOut, BarChart3, Car, Bike, Pencil, Lock, Info } from "lucide-react";
 import Link from "next/link";
-import ExcelJS from "exceljs";
+import * as XLSX from "xlsx-js-style";
 import { saveAs } from "file-saver";
 
 export default function RrhhDashboard() {
@@ -232,10 +232,8 @@ export default function RrhhDashboard() {
         dataSource = exportData.filter((f: any) => f.user_id === exportEmployee);
       }
 
-      const workbook = new ExcelJS.Workbook();
+      const workbook = XLSX.utils.book_new();
       
-      // Hoja de Resumen
-      const resumenSheet = workbook.addWorksheet("Resumen");
       const porEmpleadoExport = dataSource.reduce((acc: any, f: any) => {
         if (!acc[f.user_id]) acc[f.user_id] = [];
         acc[f.user_id].push(f);
@@ -255,12 +253,10 @@ export default function RrhhDashboard() {
       });
 
       if (dataResumen.length > 0) {
-        resumenSheet.columns = Object.keys(dataResumen[0]).map(key => ({ header: key, key: key, width: 25 }));
-        resumenSheet.addRows(dataResumen);
+        const resumenSheet = XLSX.utils.json_to_sheet(dataResumen);
+        XLSX.utils.book_append_sheet(workbook, resumenSheet, "Resumen");
       }
 
-      // Hoja de Detalles
-      const detallesSheet = workbook.addWorksheet("Detalles");
       const dataDetalles = dataSource.map((f: any) => ({
         "Fecha Escaneo": f.date,
         "Empleado": formatName(f.user_id),
@@ -271,13 +267,11 @@ export default function RrhhDashboard() {
       }));
 
       if (dataDetalles.length > 0) {
-        detallesSheet.columns = Object.keys(dataDetalles[0]).map(key => ({ header: key, key: key, width: 20 }));
-        detallesSheet.addRows(dataDetalles);
+        const detallesSheet = XLSX.utils.json_to_sheet(dataDetalles);
+        XLSX.utils.book_append_sheet(workbook, detallesSheet, "Detalles");
       }
 
-      const buffer = await workbook.xlsx.writeBuffer();
-      const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-      saveAs(blob, `Consolidado_Nomina_${exportType}_${exportStartDate}_${exportEndDate}.xlsx`);
+      XLSX.writeFile(workbook, `Consolidado_Nomina_${exportType}_${exportStartDate}_${exportEndDate}.xlsx`);
       setExportModalOpen(false);
     } catch (error) {
       console.error(error);
