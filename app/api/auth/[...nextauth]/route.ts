@@ -114,7 +114,7 @@ export const authOptions: NextAuthOptions = {
         // Si tenemos un ID de oficina, consultamos la API para verificar si pertenece a RRHH
         if (extractedOfficeId && !isNaN(Number(extractedOfficeId))) {
           try {
-            const res = await fetch(`http://172.16.205.33:8000/api/catalogs/office/?id=${extractedOfficeId}`, {
+            const res = await fetch(`http://172.16.202.58:8002/api/catalogs/office/?id=${extractedOfficeId}`, {
               method: 'GET',
               headers: { 'Accept': 'application/json' }
             });

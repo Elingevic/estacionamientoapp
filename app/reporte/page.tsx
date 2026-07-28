@@ -151,7 +151,7 @@ export default async function ReportePage({
   // Obtener cargo de la API si es un número
   if (userCargo && !isNaN(Number(userCargo)) && (!isRrhh || emailFilter)) {
     try {
-      const res = await fetch(`http://172.16.205.33:8000/api/catalogs/position/?id=${userCargo}`, {
+      const res = await fetch(`http://172.16.202.58:8002/api/catalogs/position/?id=${userCargo}`, {
         method: 'GET',
         headers: { 'Accept': 'application/json' },
         cache: 'force-cache'
