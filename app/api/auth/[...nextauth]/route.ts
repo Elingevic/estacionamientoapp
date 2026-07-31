@@ -170,6 +170,9 @@ export const authOptions: NextAuthOptions = {
   session: {
     strategy: "jwt",
   },
+  pages: {
+    signIn: "/login",
+  },
   secret: process.env.NEXTAUTH_SECRET || "super-secret-key-para-desarrollo-12345",
 };
 
