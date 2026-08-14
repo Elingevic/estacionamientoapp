@@ -2,9 +2,12 @@ import Link from "next/link";
 import { ShieldAlert, Building2 } from "lucide-react";
 
 export default function AccesoDenegado() {
-  const keycloakIssuer = process.env.KEYCLOAK_ISSUER || "http://172.16.205.33:8080/realms/sudeaseg";
-  const appUrl = process.env.NEXTAUTH_URL || "http://172.18.202.16:3000";
-  const logoutUrl = `${keycloakIssuer}/protocol/openid-connect/logout?client_id=sudeparking&post_logout_redirect_uri=${encodeURIComponent(appUrl + "/")}`;
+  const keycloakIssuer = process.env.NEXT_PUBLIC_KEYCLOAK_ISSUER || process.env.KEYCLOAK_ISSUER;
+  const clientId = process.env.NEXT_PUBLIC_KEYCLOAK_CLIENT_ID || process.env.KEYCLOAK_ID;
+  const appUrl = process.env.NEXTAUTH_URL;
+  const logoutUrl = (keycloakIssuer && clientId && appUrl)
+    ? `${keycloakIssuer}/protocol/openid-connect/logout?client_id=${encodeURIComponent(clientId)}&post_logout_redirect_uri=${encodeURIComponent(appUrl + "/")}`
+    : "/";
 
 
   return (

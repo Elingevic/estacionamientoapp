@@ -315,8 +315,12 @@ export default function Home() {
               <BarChart3 className="w-5 h-5" /> Estadísticas
             </Link>
             <button onClick={async () => {
-              const keycloakIssuer = process.env.NEXT_PUBLIC_KEYCLOAK_ISSUER || "http://172.16.205.33:8080/realms/sudeaseg";
-              const clientId = process.env.NEXT_PUBLIC_KEYCLOAK_CLIENT_ID || "sudeparking";
+              const keycloakIssuer = process.env.NEXT_PUBLIC_KEYCLOAK_ISSUER;
+              const clientId = process.env.NEXT_PUBLIC_KEYCLOAK_CLIENT_ID;
+              if (!keycloakIssuer || !clientId) {
+                console.error("Faltan variables de entorno NEXT_PUBLIC_KEYCLOAK_ISSUER o NEXT_PUBLIC_KEYCLOAK_CLIENT_ID");
+                return;
+              }
               const idToken = (session as any)?.id_token;
               
               const postLogoutRedirectUri = `${window.location.origin}/`;

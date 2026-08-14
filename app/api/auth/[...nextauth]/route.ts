@@ -52,7 +52,8 @@ export const authOptions: NextAuthOptions = {
   ],
   callbacks: {
     async redirect({ url, baseUrl }) {
-      if (url.includes("172.16.205.33:8080")) {
+      const issuer = process.env.KEYCLOAK_ISSUER;
+      if (issuer && url.startsWith(issuer)) {
         return url;
       }
       if (url.startsWith("/")) return `${baseUrl}${url}`;
