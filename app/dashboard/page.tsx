@@ -9,8 +9,9 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell
 } from "recharts";
+import { Suspense } from 'react';
 
-export default function Dashboard() {
+function DashboardContent() {
   const { data: session, status } = useSession();
   const searchParams = useSearchParams();
   const forcePersonal = searchParams.get('personal') === 'true';
@@ -387,5 +388,13 @@ export default function Dashboard() {
 
       </div>
     </main>
+  );
+}
+
+export default function Dashboard() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-slate-50 flex items-center justify-center"><Loader2 className="w-10 h-10 animate-spin text-brand-blue" /></div>}>
+      <DashboardContent />
+    </Suspense>
   );
 }

@@ -307,7 +307,7 @@ export default function Home() {
 
         <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-brand-blue p-5 rounded-2xl shadow-xl shadow-brand-blue/20">
           <div className="text-white">
-            <h1 className="text-xl font-bold flex items-center gap-2"><Building2 className="w-5 h-5"/> SudeParking</h1>
+            <h1 className="text-xl font-bold flex items-center gap-2"><Building2 className="w-5 h-5"/> Estacionamiento</h1>
             <p className="text-xs text-blue-200 mt-1 truncate w-48 opacity-90">{session?.user?.name || session?.user?.email}</p>
           </div>
           <div className="flex gap-2 flex-wrap w-full sm:w-auto justify-end">
