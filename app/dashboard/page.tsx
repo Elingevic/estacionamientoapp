@@ -117,7 +117,7 @@ export default function Dashboard() {
   // Estadísticas
   const totalFacturas = filteredFacturas.length;
   const totalMonto = filteredFacturas.reduce((sum, f) => sum + Number(f.amount), 0);
-  const totalMontoUsd = filteredFacturas.reduce((sum, f) => sum + Number(f.amount) / bcvRate, 0);
+  const totalMontoUsd = filteredFacturas.reduce((sum, f) => sum + Number(f.amount) / (f.exchange_rate || bcvRate), 0);
   
   const totalCarros = filteredFacturas.filter(f => f.vehicle_type === "carro" || !f.vehicle_type).length;
   const totalMotos = filteredFacturas.filter(f => f.vehicle_type === "moto").length;
@@ -125,8 +125,8 @@ export default function Dashboard() {
   const montoCarros = filteredFacturas.filter(f => f.vehicle_type === "carro" || !f.vehicle_type).reduce((sum, f) => sum + Number(f.amount), 0);
   const montoMotos = filteredFacturas.filter(f => f.vehicle_type === "moto").reduce((sum, f) => sum + Number(f.amount), 0);
   
-  const montoCarrosUsd = filteredFacturas.filter(f => f.vehicle_type === "carro" || !f.vehicle_type).reduce((sum, f) => sum + Number(f.amount) / bcvRate, 0);
-  const montoMotosUsd = filteredFacturas.filter(f => f.vehicle_type === "moto").reduce((sum, f) => sum + Number(f.amount) / bcvRate, 0);
+  const montoCarrosUsd = filteredFacturas.filter(f => f.vehicle_type === "carro" || !f.vehicle_type).reduce((sum, f) => sum + Number(f.amount) / (f.exchange_rate || bcvRate), 0);
+  const montoMotosUsd = filteredFacturas.filter(f => f.vehicle_type === "moto").reduce((sum, f) => sum + Number(f.amount) / (f.exchange_rate || bcvRate), 0);
 
   const totalPersonas = new Set(filteredFacturas.map(f => f.user_id)).size;
 
@@ -137,7 +137,7 @@ export default function Dashboard() {
     const mesIdx = Number(m) - 1;
     if (!acc[mesIdx]) acc[mesIdx] = { montoBs: 0, montoUsd: 0 };
     acc[mesIdx].montoBs += Number(f.amount);
-    acc[mesIdx].montoUsd += Number(f.amount) / bcvRate;
+    acc[mesIdx].montoUsd += Number(f.amount) / (f.exchange_rate || bcvRate);
     return acc;
   }, {} as Record<number, {montoBs: number, montoUsd: number}>);
 

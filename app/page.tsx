@@ -59,7 +59,7 @@ export default function Home() {
   const fetchMyFacturas = async (silent = false) => {
     if (!silent) setFetchingFacturas(true);
     try {
-      const res = await fetch(`/api/facturas?start=${startDate}&end=${endDate}`);
+      const res = await fetch(`/api/facturas?start=${startDate}&end=${endDate}&my_invoices=true`);
       if (!res.ok) {
         throw new Error(await res.text());
       }
@@ -270,7 +270,7 @@ export default function Home() {
   const isRrhh = session?.user?.email?.toLowerCase().includes("rrhh") || (session?.user as any)?.role === "rrhh";
 
   const myTotalMonto = myFacturas.reduce((sum, f) => sum + Number(f.amount), 0);
-  const myTotalMontoUsd = myFacturas.reduce((sum, f) => sum + Number(f.amount) / (bcvRate || 587.40), 0);
+  const myTotalMontoUsd = myFacturas.reduce((sum, f) => sum + Number(f.amount) / (f.exchange_rate || bcvRate || 587.40), 0);
   const myTotalCarros = myFacturas.filter(f => f.vehicle_type === "carro" || !f.vehicle_type).length;
   const myTotalMotos = myFacturas.filter(f => f.vehicle_type === "moto").length;
 
@@ -492,7 +492,7 @@ export default function Home() {
               <div className="space-y-3 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
                 {myFacturas.map((f, i) => {
                   const isMoto = f.vehicle_type === "moto";
-                  const itemUsd = Number(f.amount) / (bcvRate || 587.40);
+                  const itemUsd = Number(f.amount) / (f.exchange_rate || bcvRate || 587.40);
                   return (
                     <div key={i} className="flex justify-between items-center bg-slate-50 p-4 rounded-2xl border border-slate-100 hover:border-slate-200 transition-colors group">
                       <div className="flex items-center gap-3">

@@ -198,12 +198,12 @@ export default function RrhhDashboard() {
     email,
     facturas: facturasPorEmpleado[email],
     totalMonto: facturasPorEmpleado[email].reduce((sum: number, f: any) => sum + Number(f.amount), 0),
-    totalMontoUsd: facturasPorEmpleado[email].reduce((sum: number, f: any) => sum + Number(f.amount) / bcvRate, 0),
+    totalMontoUsd: facturasPorEmpleado[email].reduce((sum: number, f: any) => sum + Number(f.amount) / (f.exchange_rate || bcvRate), 0),
     totalTickets: facturasPorEmpleado[email].length
   }));
 
   const totalMonto = filteredFacturas.reduce((acc, f) => acc + Number(f.amount), 0);
-  const totalMontoUsd = filteredFacturas.reduce((acc, f) => acc + Number(f.amount) / bcvRate, 0);
+  const totalMontoUsd = filteredFacturas.reduce((acc, f) => acc + Number(f.amount) / (f.exchange_rate || bcvRate), 0);
   const totalTickets = filteredFacturas.length;
   const promedioTicket = totalTickets > 0 ? totalMonto / totalTickets : 0;
   const promedioTicketUsd = totalTickets > 0 ? totalMontoUsd / totalTickets : 0;
@@ -263,7 +263,7 @@ export default function RrhhDashboard() {
         "Nro. Factura": f.invoice_number,
         "Tipo de Cambio": bcvRate,
         "Monto Bs.": Number(f.amount),
-        "Monto USD": Number(f.amount) / bcvRate,
+        "Monto USD": Number(f.amount) / (f.exchange_rate || bcvRate),
       }));
 
       if (dataDetalles.length > 0) {
@@ -479,7 +479,7 @@ export default function RrhhDashboard() {
                           <p className="font-bold text-emerald-600">Bs. {Number(f.amount).toFixed(2)}</p>
                         </td>
                         <td className="px-6 py-4 text-right">
-                          <p className="text-sm font-bold text-slate-500">${(Number(f.amount) / bcvRate).toFixed(2)}</p>
+                          <p className="text-sm font-bold text-slate-500">${(Number(f.amount) / (f.exchange_rate || bcvRate)).toFixed(2)}</p>
                         </td>
                         <td className="px-6 py-4 flex items-center justify-center gap-2">
                           {f.image_url ? (

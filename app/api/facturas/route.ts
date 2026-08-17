@@ -22,12 +22,13 @@ export async function GET(req: NextRequest) {
     const start = searchParams.get("start");
     const end = searchParams.get("end");
     const search = searchParams.get("search");
+    const myInvoices = searchParams.get("my_invoices") === "true";
 
     const isRrhh = (session.user as any).role === "rrhh";
     let sql: string;
     let params: any[];
 
-    if (isRrhh) {
+    if (isRrhh && !myInvoices) {
       if (search && search.length > 2) {
         sql = `
           SELECT 
@@ -38,6 +39,7 @@ export async function GET(req: NextRequest) {
             p.description as parking_name, 
             p.address as location, 
             i.amount, 
+            i.exchange_rate,
             i.image_url, 
             LOWER(v.description) as vehicle_type, 
             i.report_sequence, 
@@ -64,6 +66,7 @@ export async function GET(req: NextRequest) {
             p.description as parking_name, 
             p.address as location, 
             i.amount, 
+            i.exchange_rate,
             i.image_url, 
             LOWER(v.description) as vehicle_type, 
             i.report_sequence, 
@@ -87,6 +90,7 @@ export async function GET(req: NextRequest) {
           p.description as parking_name, 
           p.address as location, 
           i.amount, 
+          i.exchange_rate,
           i.image_url, 
           LOWER(v.description) as vehicle_type, 
           i.report_sequence, 
@@ -208,7 +212,26 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Ya tienes registrada una factura con este mismo número." }, { status: 400 });
     }
 
-    // 6. Insertar la factura
+    // 6. Obtener tasa actual y Guardar
+    let currentBcvRate = 587.40;
+    try {
+      const bcvRes = await fetch("http://172.16.202.58:8000/api/rates/", { cache: "no-store" });
+      if (bcvRes.ok) {
+        const bcvData = await bcvRes.json();
+        let usdData = null;
+        if (Array.isArray(bcvData)) {
+          usdData = bcvData.find((item: any) => item.currency === "USD" || (typeof item.currency === "object" && item.currency?.code === "USD"));
+        } else if (bcvData && bcvData.value && Array.isArray(bcvData.value)) {
+          usdData = bcvData.value.find((item: any) => item.currency === "USD" || (typeof item.currency === "object" && item.currency?.code === "USD"));
+        }
+        if (usdData && usdData.bd_venta_ask) {
+          currentBcvRate = parseFloat(usdData.bd_venta_ask);
+        }
+      }
+    } catch (e) {
+      console.warn("No se pudo obtener la tasa BCV", e);
+    }
+
     const invoiceId = randomUUID();
     const sql = `
       INSERT INTO invoice (
@@ -217,10 +240,11 @@ export async function POST(req: NextRequest) {
         issued_at, 
         invoice_number, 
         amount, 
+        exchange_rate,
         image_url, 
         parking_lot_id, 
         vehicle_type_id
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
     `;
     
     const params = [
@@ -229,6 +253,7 @@ export async function POST(req: NextRequest) {
       date,
       invoice_number,
       amount,
+      currentBcvRate,
       image_url || null,
       parkingLotId,
       vehicleTypeId
@@ -427,6 +452,7 @@ export async function PUT(req: NextRequest) {
         p.description as parking_name, 
         p.address as location, 
         i.amount, 
+        i.exchange_rate,
         i.image_url, 
         LOWER(v.description) as vehicle_type, 
         i.report_sequence, 

@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS invoices (
     parking_name VARCHAR(255),
     location VARCHAR(255),
     amount NUMERIC(15, 2) NOT NULL,
+    exchange_rate NUMERIC(10, 4),
     image_url TEXT,
     vehicle_type VARCHAR(50),
     report_sequence VARCHAR(50),
