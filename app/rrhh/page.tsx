@@ -252,6 +252,8 @@ export default function RrhhDashboard() {
         const totalUsd = facts.reduce((sum: number, f: any) => sum + (Number(f.amount) / (f.exchange_rate || bcvRate)), 0);
         return {
           "Empleado": formatName(email),
+          "Desde": exportStartDate,
+          "Hasta": exportEndDate,
           "Cantidad de Tickets": facts.length,
           "Total Bs.": totalBs,
           "Total USD": totalUsd,
