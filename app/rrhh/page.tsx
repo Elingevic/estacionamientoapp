@@ -369,7 +369,13 @@ export default function RrhhDashboard() {
             <div className="space-y-5">
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Semana</label>
-                <input type="week" value={selectedWeek} onChange={handleWeekChange} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20 transition-all font-medium text-slate-700" />
+                <div className="relative">
+                  <input type="week" value={selectedWeek} onChange={handleWeekChange} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20 transition-all font-medium text-transparent relative z-10 cursor-pointer" />
+                  <div className="absolute inset-0 flex items-center justify-between px-4 pointer-events-none">
+                    <span className="font-medium text-slate-700">Semana {selectedWeek.split('-W')[1]}, {selectedWeek.split('-W')[0]}</span>
+                    <Calendar className="w-5 h-5 text-slate-400" />
+                  </div>
+                </div>
               </div>
               <div className="text-xs text-slate-400 font-medium">
                 Cargando facturas del <strong className="text-slate-600">{new Date(startDate + "T12:00:00").toLocaleDateString("es-ES")}</strong> al <strong className="text-slate-600">{new Date(endDate + "T12:00:00").toLocaleDateString("es-ES")}</strong>
@@ -640,8 +646,14 @@ export default function RrhhDashboard() {
             
               <div className="space-y-4">
               <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Semana a Exportar</label>
-                <input type="week" value={exportWeek} onChange={handleExportWeekChange} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-brand-blue text-sm font-medium" />
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-2">Semana a Exportar</label>
+                <div className="relative">
+                  <input type="week" value={exportWeek} onChange={handleExportWeekChange} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-brand-blue text-transparent relative z-10 cursor-pointer" />
+                  <div className="absolute inset-0 flex items-center justify-between px-4 pointer-events-none">
+                    <span className="text-sm font-medium text-slate-700">Semana {exportWeek.split('-W')[1]}, {exportWeek.split('-W')[0]}</span>
+                    <Calendar className="w-5 h-5 text-slate-400" />
+                  </div>
+                </div>
               </div>
 
               <div className="space-y-1">
