@@ -232,6 +232,12 @@ export default function RrhhDashboard() {
         dataSource = exportData.filter((f: any) => f.user_id === exportEmployee);
       }
 
+      if (dataSource.length === 0) {
+        alert("No hay registros para exportar en este período.");
+        setIsExporting(false);
+        return;
+      }
+
       const workbook = XLSX.utils.book_new();
       
       const porEmpleadoExport = dataSource.reduce((acc: any, f: any) => {
@@ -243,12 +249,12 @@ export default function RrhhDashboard() {
       const dataResumen = Object.keys(porEmpleadoExport).map(email => {
         const facts = porEmpleadoExport[email];
         const totalBs = facts.reduce((sum: number, f: any) => sum + Number(f.amount), 0);
+        const totalUsd = facts.reduce((sum: number, f: any) => sum + (Number(f.amount) / (f.exchange_rate || bcvRate)), 0);
         return {
           "Empleado": formatName(email),
           "Cantidad de Tickets": facts.length,
-          "Tipo de Cambio": bcvRate,
           "Total Bs.": totalBs,
-          "Total USD": totalBs / bcvRate,
+          "Total USD": totalUsd,
         };
       });
 
@@ -261,7 +267,7 @@ export default function RrhhDashboard() {
         "Fecha Escaneo": f.date,
         "Empleado": formatName(f.user_id),
         "Nro. Factura": f.invoice_number,
-        "Tipo de Cambio": bcvRate,
+        "Tipo de Cambio (BCV)": f.exchange_rate || bcvRate,
         "Monto Bs.": Number(f.amount),
         "Monto USD": Number(f.amount) / (f.exchange_rate || bcvRate),
       }));
