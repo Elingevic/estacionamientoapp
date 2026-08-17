@@ -311,7 +311,7 @@ export default function Home() {
             <p className="text-xs text-blue-200 mt-1 truncate w-48 opacity-90">{session?.user?.name || session?.user?.email}</p>
           </div>
           <div className="flex gap-2 flex-wrap w-full sm:w-auto justify-end">
-            <Link href="/dashboard" className="flex items-center gap-2 px-4 py-2.5 bg-white/10 text-white rounded-xl hover:bg-white/20 transition font-bold text-sm">
+            <Link href="/dashboard?personal=true" className="flex items-center gap-2 px-4 py-2.5 bg-white/10 text-white rounded-xl hover:bg-white/20 transition font-bold text-sm">
               <BarChart3 className="w-5 h-5" /> Estadísticas
             </Link>
             <button onClick={async () => {

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, ArrowLeft, BarChart3, TrendingUp, Car, Bike, DollarSign, PieChart as PieChartIcon, Users } from "lucide-react";
 import Link from "next/link";
 import {
@@ -11,6 +12,8 @@ import {
 
 export default function Dashboard() {
   const { data: session, status } = useSession();
+  const searchParams = useSearchParams();
+  const forcePersonal = searchParams.get('personal') === 'true';
   const [loading, setLoading] = useState(true);
   const [facturas, setFacturas] = useState<any[]>([]);
 
@@ -71,7 +74,9 @@ export default function Dashboard() {
   const fetchData = async (silent = false) => {
     if (!silent) setLoading(true);
     try {
-      const res = await fetch(`/api/facturas?start=${startDate}&end=${endDate}`);
+      const isActuallyRrhh = (session?.user?.email?.toLowerCase().includes("rrhh") || (session?.user as any)?.role === "rrhh") && !forcePersonal;
+      const url = `/api/facturas?start=${startDate}&end=${endDate}${!isActuallyRrhh ? '&my_invoices=true' : ''}`;
+      const res = await fetch(url);
       if (!res.ok) {
         throw new Error(await res.text());
       }
@@ -107,7 +112,7 @@ export default function Dashboard() {
     );
   }
 
-  const isRrhh = session?.user?.email?.toLowerCase().includes("rrhh") || (session?.user as any)?.role === "rrhh";
+  const isRrhh = (session?.user?.email?.toLowerCase().includes("rrhh") || (session?.user as any)?.role === "rrhh") && !forcePersonal;
 
   const filteredFacturas = facturas.filter(f => 
     f.user_id?.toLowerCase().includes(searchTerm.toLowerCase()) || 
