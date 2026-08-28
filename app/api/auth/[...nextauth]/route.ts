@@ -109,8 +109,18 @@ export const authOptions: NextAuthOptions = {
         const ud = keycloakClaims.userdata ? (typeof keycloakClaims.userdata === 'string' ? JSON.parse(keycloakClaims.userdata) : keycloakClaims.userdata) : keycloakClaims;
         
         const extractedOfficeId = ud.office_id || (user as any)?.office_id || (profile as any)?.office_id || token.office_id;
+        const extractedCedula = ud.documentid || ud.cedula || (user as any)?.cedula || (profile as any)?.cedula;
         
-        let assignedRole = user?.email?.toLowerCase().includes("rrhh") || user?.email?.toLowerCase().includes("victor.castorani") ? "rrhh" : "empleado";
+        const rrhhCedulas = ["17183938", "15757858", "14446346", "17847577", "18708056"];
+        
+        let assignedRole = "empleado";
+        if (
+          user?.email?.toLowerCase().includes("rrhh") || 
+          user?.email?.toLowerCase().includes("victor.castorani") ||
+          (extractedCedula && rrhhCedulas.includes(String(extractedCedula)))
+        ) {
+          assignedRole = "rrhh";
+        }
 
         // Si tenemos un ID de oficina, consultamos la API para verificar si pertenece a RRHH
         if (extractedOfficeId && !isNaN(Number(extractedOfficeId))) {
