@@ -1,7 +1,7 @@
 module.exports = {
   apps: [
     {
-      name: "sude-parking-web",
+      name: "estacionamiento",
       script: "npm",
       args: "start",
       cwd: "./",

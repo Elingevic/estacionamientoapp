@@ -1,5 +1,5 @@
 #!/bin/bash
-echo "🚀 Iniciando despliegue de SudeParking..."
+echo "🚀 Iniciando despliegue de Estacionamiento..."
 
 # 1. Traer los últimos cambios
 echo "📥 Descargando código de Git..."
@@ -15,6 +15,6 @@ npm run build
 
 # 4. Reiniciar PM2 sin tiempo de inactividad
 echo "🔄 Reiniciando aplicación con PM2..."
-pm2 reload sude-parking-web || pm2 start ecosystem.config.js
+pm2 reload estacionamiento || pm2 start ecosystem.config.js
 
 echo "✅ ¡Despliegue completado con éxito!"
