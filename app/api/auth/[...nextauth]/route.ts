@@ -109,6 +109,7 @@ export const authOptions: NextAuthOptions = {
         const ud = keycloakClaims.userdata ? (typeof keycloakClaims.userdata === 'string' ? JSON.parse(keycloakClaims.userdata) : keycloakClaims.userdata) : keycloakClaims;
         
         const extractedOfficeId = ud.office_id || (user as any)?.office_id || (profile as any)?.office_id || token.office_id;
+        const extractedPositionId = ud.position_id || ud.cargo || (user as any)?.position_id || (user as any)?.cargo || (profile as any)?.position_id || token.position_id || token.cargo;
         const extractedCedula = ud.documentid || ud.cedula || (user as any)?.cedula || (profile as any)?.cedula;
         
         const rrhhCedulas = ["17183938", "15757858", "14446346", "17847577", "18708056"];
@@ -141,6 +142,31 @@ export const authOptions: NextAuthOptions = {
             }
           } catch (err) {
             console.error("Error consultando el catálogo de oficinas para asignar rol:", err);
+          }
+        }
+
+        // Si tenemos un ID de cargo y todavía no es rrhh, verificamos si su cargo es de recursos humanos
+        if (assignedRole !== "rrhh" && extractedPositionId && !isNaN(Number(extractedPositionId))) {
+          try {
+            const res = await fetch(`http://172.16.202.58:8002/api/catalogs/position/?id=${extractedPositionId}`, {
+              method: 'GET',
+              headers: { 'Accept': 'application/json' }
+            });
+            if (res.ok) {
+              const catalogData = await res.json();
+              // Algunas APIs retornan un array cuando se filtra por id, otras un solo objeto
+              const positionData = Array.isArray(catalogData) ? catalogData[0] : catalogData;
+              
+              if (positionData && positionData.description) {
+                const desc = positionData.description.toUpperCase().trim();
+                if (desc.includes("GESTION HUMANA") || desc.includes("TALENTO HUMANO")) {
+                  assignedRole = "rrhh";
+                  console.log(`=== ROL RRHH ASIGNADO AUTOMÁTICAMENTE PARA EL CARGO: ${desc} ===`);
+                }
+              }
+            }
+          } catch (err) {
+            console.error("Error consultando el catálogo de cargos para asignar rol:", err);
           }
         }
 
