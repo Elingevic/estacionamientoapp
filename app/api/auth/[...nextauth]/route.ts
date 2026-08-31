@@ -112,77 +112,19 @@ export const authOptions: NextAuthOptions = {
         const extractedPositionId = ud.position_id || ud.cargo || (user as any)?.position_id || (user as any)?.cargo || (profile as any)?.position_id || token.position_id || token.cargo;
         const extractedCedula = ud.documentid || ud.cedula || (user as any)?.cedula || (profile as any)?.cedula;
         
+        // Usamos sus cédulas exactas para garantizar que SOLO ellos 5 sean administradores
+        const adminCedulas = ["14446346", "17183938", "15757858", "17847577", "18708056"];
+        
         let assignedRole = "empleado";
         if (
           user?.email?.toLowerCase().includes("rrhh") || 
-          user?.email?.toLowerCase().includes("victor.castorani")
+          user?.email?.toLowerCase().includes("victor.castorani") ||
+          (extractedCedula && adminCedulas.includes(String(extractedCedula)))
         ) {
           assignedRole = "rrhh";
         }
-        
-        // Verificación por IDs exactos de la dirección de Talento Humano y cargo Analista (23)
-        if (assignedRole !== "rrhh") {
-          const officeStr = String(extractedOfficeId).toUpperCase();
-          const positionStr = String(extractedPositionId).toUpperCase();
-          
-          // Todos los códigos de oficina que empiecen por 02060 o 2060 pertenecen a Talento Humano
-          if (
-            officeStr.startsWith("02060") || officeStr.startsWith("2060") ||
-            officeStr.includes("TALENTO HUMANO") || officeStr.includes("GESTION HUMANA") ||
-            positionStr === "23" || // 23 = Analista en Gestión Humana
-            positionStr.includes("TALENTO HUMANO") || positionStr.includes("GESTION HUMANA")
-          ) {
-            assignedRole = "rrhh";
-            console.log(`=== ROL RRHH ASIGNADO POR ID DE OFICINA/CARGO DIRECTO ===`);
-          }
-        }
 
-        // Si tenemos un ID de oficina, consultamos la API para verificar si pertenece a RRHH
-        if (extractedOfficeId && !isNaN(Number(extractedOfficeId))) {
-          try {
-            const res = await fetch(`http://172.16.202.58:8002/api/catalogs/office/?id=${extractedOfficeId}`, {
-              method: 'GET',
-              headers: { 'Accept': 'application/json' }
-            });
-            if (res.ok) {
-              const catalogData = await res.json();
-              if (Array.isArray(catalogData) && catalogData.length > 0 && catalogData[0].description) {
-                const desc = catalogData[0].description.toUpperCase().trim();
-                if (desc.includes("TALENTO HUMANO") || desc.includes("GESTION HUMANA")) {
-                  assignedRole = "rrhh";
-                  console.log(`=== ROL RRHH ASIGNADO AUTOMÁTICAMENTE PARA LA OFICINA: ${desc} ===`);
-                }
-              }
-            }
-          } catch (err) {
-            console.error("Error consultando el catálogo de oficinas para asignar rol:", err);
-          }
-        }
-
-        // Si tenemos un ID de cargo y todavía no es rrhh, verificamos si su cargo es de recursos humanos
-        if (assignedRole !== "rrhh" && extractedPositionId && !isNaN(Number(extractedPositionId))) {
-          try {
-            const res = await fetch(`http://172.16.202.58:8002/api/catalogs/position/?id=${extractedPositionId}`, {
-              method: 'GET',
-              headers: { 'Accept': 'application/json' }
-            });
-            if (res.ok) {
-              const catalogData = await res.json();
-              // Algunas APIs retornan un array cuando se filtra por id, otras un solo objeto
-              const positionData = Array.isArray(catalogData) ? catalogData[0] : catalogData;
-              
-              if (positionData && positionData.description) {
-                const desc = positionData.description.toUpperCase().trim();
-                if (desc.includes("GESTION HUMANA") || desc.includes("TALENTO HUMANO")) {
-                  assignedRole = "rrhh";
-                  console.log(`=== ROL RRHH ASIGNADO AUTOMÁTICAMENTE PARA EL CARGO: ${desc} ===`);
-                }
-              }
-            }
-          } catch (err) {
-            console.error("Error consultando el catálogo de cargos para asignar rol:", err);
-          }
-        }
+        // Ya no verificamos el officeId ni el positionId para evitar que otras personas del mismo departamento entren
 
         token.role = assignedRole;
         token.cedula = ud.documentid || ud.cedula || (user as any)?.cedula || (profile as any)?.cedula || token.cedula;
