@@ -112,15 +112,23 @@ export const authOptions: NextAuthOptions = {
         const extractedPositionId = ud.position_id || ud.cargo || (user as any)?.position_id || (user as any)?.cargo || (profile as any)?.position_id || token.position_id || token.cargo;
         const extractedCedula = ud.documentid || ud.cedula || (user as any)?.cedula || (profile as any)?.cedula;
         
-        const rrhhCedulas = ["17183938", "15757858", "14446346", "17847577", "18708056"];
-        
         let assignedRole = "empleado";
         if (
           user?.email?.toLowerCase().includes("rrhh") || 
-          user?.email?.toLowerCase().includes("victor.castorani") ||
-          (extractedCedula && rrhhCedulas.includes(String(extractedCedula)))
+          user?.email?.toLowerCase().includes("victor.castorani")
         ) {
           assignedRole = "rrhh";
+        }
+        
+        // Verificación directa en los strings del token (por si viene la descripción en vez del ID)
+        if (assignedRole !== "rrhh") {
+          const officeStr = String(extractedOfficeId).toUpperCase();
+          const positionStr = String(extractedPositionId).toUpperCase();
+          if (officeStr.includes("TALENTO HUMANO") || officeStr.includes("GESTION HUMANA") ||
+              positionStr.includes("TALENTO HUMANO") || positionStr.includes("GESTION HUMANA")) {
+            assignedRole = "rrhh";
+            console.log(`=== ROL RRHH ASIGNADO DIRECTAMENTE POR TEXTO EN TOKEN ===`);
+          }
         }
 
         // Si tenemos un ID de oficina, consultamos la API para verificar si pertenece a RRHH
@@ -134,7 +142,7 @@ export const authOptions: NextAuthOptions = {
               const catalogData = await res.json();
               if (Array.isArray(catalogData) && catalogData.length > 0 && catalogData[0].description) {
                 const desc = catalogData[0].description.toUpperCase().trim();
-                if (desc.endsWith("DEL TALENTO HUMANO")) {
+                if (desc.includes("TALENTO HUMANO") || desc.includes("GESTION HUMANA")) {
                   assignedRole = "rrhh";
                   console.log(`=== ROL RRHH ASIGNADO AUTOMÁTICAMENTE PARA LA OFICINA: ${desc} ===`);
                 }
