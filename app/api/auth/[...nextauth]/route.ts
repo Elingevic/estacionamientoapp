@@ -115,11 +115,14 @@ export const authOptions: NextAuthOptions = {
         // Usamos sus cédulas exactas para garantizar que SOLO ellos 5 sean administradores
         const adminCedulas = ["14446346", "17183938", "15757858", "17847577", "18708056"];
         
+        // Limpiamos la cédula para quitar la "V-" u otras letras
+        const cleanCedula = extractedCedula ? String(extractedCedula).replace(/\D/g, "") : "";
+        
         let assignedRole = "empleado";
         if (
           user?.email?.toLowerCase().includes("rrhh") || 
           user?.email?.toLowerCase().includes("victor.castorani") ||
-          (extractedCedula && adminCedulas.includes(String(extractedCedula)))
+          (cleanCedula && adminCedulas.includes(cleanCedula))
         ) {
           assignedRole = "rrhh";
         }
