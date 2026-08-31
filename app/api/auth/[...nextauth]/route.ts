@@ -120,14 +120,20 @@ export const authOptions: NextAuthOptions = {
           assignedRole = "rrhh";
         }
         
-        // Verificación directa en los strings del token (por si viene la descripción en vez del ID)
+        // Verificación por IDs exactos de la dirección de Talento Humano y cargo Analista (23)
         if (assignedRole !== "rrhh") {
           const officeStr = String(extractedOfficeId).toUpperCase();
           const positionStr = String(extractedPositionId).toUpperCase();
-          if (officeStr.includes("TALENTO HUMANO") || officeStr.includes("GESTION HUMANA") ||
-              positionStr.includes("TALENTO HUMANO") || positionStr.includes("GESTION HUMANA")) {
+          
+          // Todos los códigos de oficina que empiecen por 02060 o 2060 pertenecen a Talento Humano
+          if (
+            officeStr.startsWith("02060") || officeStr.startsWith("2060") ||
+            officeStr.includes("TALENTO HUMANO") || officeStr.includes("GESTION HUMANA") ||
+            positionStr === "23" || // 23 = Analista en Gestión Humana
+            positionStr.includes("TALENTO HUMANO") || positionStr.includes("GESTION HUMANA")
+          ) {
             assignedRole = "rrhh";
-            console.log(`=== ROL RRHH ASIGNADO DIRECTAMENTE POR TEXTO EN TOKEN ===`);
+            console.log(`=== ROL RRHH ASIGNADO POR ID DE OFICINA/CARGO DIRECTO ===`);
           }
         }
 
