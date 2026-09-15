@@ -37,12 +37,18 @@ export default function Home() {
 
   const [startDate, setStartDate] = useState(() => {
     const d = new Date();
-    const day = d.getDay() || 7;
-    // Retroceder hasta el lunes de la semana PASADA
-    d.setDate(d.getDate() - day - 6);
+    const day = d.getDay();
+    const shiftedDay = (day + 1) % 7; 
+    d.setDate(d.getDate() - shiftedDay - 7);
     return d.toISOString().split("T")[0];
   });
-  const [endDate, setEndDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [endDate, setEndDate] = useState(() => {
+    const d = new Date();
+    const day = d.getDay();
+    const shiftedDay = (day + 1) % 7;
+    d.setDate(d.getDate() - shiftedDay - 1);
+    return d.toISOString().split("T")[0];
+  });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 

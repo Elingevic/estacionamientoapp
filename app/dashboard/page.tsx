@@ -19,9 +19,19 @@ function DashboardContent() {
   const [facturas, setFacturas] = useState<any[]>([]);
 
   const [startDate, setStartDate] = useState(() => {
-    const d = new Date(); d.setDate(d.getDate() - 30); return d.toISOString().split("T")[0];
+    const d = new Date();
+    const day = d.getDay();
+    const shiftedDay = (day + 1) % 7; 
+    d.setDate(d.getDate() - shiftedDay - 7);
+    return d.toISOString().split("T")[0];
   });
-  const [endDate, setEndDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [endDate, setEndDate] = useState(() => {
+    const d = new Date();
+    const day = d.getDay();
+    const shiftedDay = (day + 1) % 7;
+    d.setDate(d.getDate() - shiftedDay - 1);
+    return d.toISOString().split("T")[0];
+  });
 
   const [bcvRate, setBcvRate] = useState<number>(587.40);
   const [searchTerm, setSearchTerm] = useState("");
@@ -33,13 +43,17 @@ function DashboardContent() {
   const setQuickFilter = (type: 'semana' | 'mes' | 'todo') => {
     const d = new Date();
     if (type === 'semana') {
-      const day = d.getDay() || 7;
-      const monday = new Date(d);
-      monday.setDate(d.getDate() - day + 1);
-      const sunday = new Date(monday);
-      sunday.setDate(monday.getDate() + 6);
-      setStartDate(monday.toISOString().split("T")[0]);
-      setEndDate(sunday.toISOString().split("T")[0]);
+      const day = d.getDay();
+      const shiftedDay = (day + 1) % 7; 
+      
+      const prevSat = new Date(d);
+      prevSat.setDate(d.getDate() - shiftedDay - 7);
+      
+      const prevFri = new Date(prevSat);
+      prevFri.setDate(prevSat.getDate() + 6);
+      
+      setStartDate(prevSat.toISOString().split("T")[0]);
+      setEndDate(prevFri.toISOString().split("T")[0]);
     } else if (type === 'mes') {
       const start = new Date(d.getFullYear(), d.getMonth(), 1);
       const end = new Date(d.getFullYear(), d.getMonth() + 1, 0);

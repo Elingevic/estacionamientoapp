@@ -133,11 +133,14 @@ export default function RrhhDashboard() {
     const targetMonday = new Date(firstMonday);
     targetMonday.setDate(firstMonday.getDate() + (week - 1) * 7);
     
-    const targetSunday = new Date(targetMonday);
-    targetSunday.setDate(targetMonday.getDate() + 6);
+    const targetSaturday = new Date(targetMonday);
+    targetSaturday.setDate(targetMonday.getDate() - 2);
+    
+    const targetFriday = new Date(targetSaturday);
+    targetFriday.setDate(targetSaturday.getDate() + 6);
 
-    setStartDate(targetMonday.toISOString().split('T')[0]);
-    setEndDate(targetSunday.toISOString().split('T')[0]);
+    setStartDate(targetSaturday.toISOString().split('T')[0]);
+    setEndDate(targetFriday.toISOString().split('T')[0]);
   };
 
   const handleExportWeekChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -222,6 +225,8 @@ export default function RrhhDashboard() {
   const totalTickets = filteredFacturas.length;
   const promedioTicket = totalTickets > 0 ? totalMonto / totalTickets : 0;
   const promedioTicketUsd = totalTickets > 0 ? totalMontoUsd / totalTickets : 0;
+  const totalCarros = new Set(filteredFacturas.filter(f => f.vehicle_type === "carro" || !f.vehicle_type).map(f => f.user_id)).size;
+  const totalMotos = new Set(filteredFacturas.filter(f => f.vehicle_type === "moto").map(f => f.user_id)).size;
 
   const triggerExportModal = () => {
     setExportType(selectedEmployee ? "individual" : "general");
@@ -263,15 +268,36 @@ export default function RrhhDashboard() {
 
       const dataResumen = Object.keys(porEmpleadoExport).map(email => {
         const facts = porEmpleadoExport[email];
+        
+        const carros = facts.filter((f: any) => f.vehicle_type === "carro" || !f.vehicle_type);
+        const motos = facts.filter((f: any) => f.vehicle_type === "moto");
+        
+        const totalBsCarro = carros.reduce((sum: number, f: any) => sum + Number(f.amount), 0);
+        const totalUsdCarro = carros.reduce((sum: number, f: any) => sum + (Number(f.amount) / (f.exchange_rate || bcvRate)), 0);
+        const tarifaCarro = carros.length > 0 ? (totalBsCarro / carros.length) : 0;
+        
+        const totalBsMoto = motos.reduce((sum: number, f: any) => sum + Number(f.amount), 0);
+        const totalUsdMoto = motos.reduce((sum: number, f: any) => sum + (Number(f.amount) / (f.exchange_rate || bcvRate)), 0);
+        const tarifaMoto = motos.length > 0 ? (totalBsMoto / motos.length) : 0;
+        
         const totalBs = facts.reduce((sum: number, f: any) => sum + Number(f.amount), 0);
         const totalUsd = facts.reduce((sum: number, f: any) => sum + (Number(f.amount) / (f.exchange_rate || bcvRate)), 0);
+
         return {
           "Empleado": formatName(email),
           "Desde": exportStartDate,
           "Hasta": exportEndDate,
-          "Cantidad de Tickets": facts.length,
-          "Total Bs.": totalBs,
-          "Total USD": totalUsd,
+          "Tickets de Carro": carros.length,
+          "Tarifa Carro": tarifaCarro || 0,
+          "Total Bs. Carro": totalBsCarro || 0,
+          "Total USD Carro": totalUsdCarro || 0,
+          "Tickets de Moto": motos.length,
+          "Tarifa Moto": tarifaMoto || 0,
+          "Total Bs. Moto": totalBsMoto || 0,
+          "Total USD Moto": totalUsdMoto || 0,
+          "Total Cantidad de Tickets": facts.length,
+          "Monto Total Bs.": totalBs,
+          "Monto Total USD": totalUsd,
         };
       });
 
@@ -338,7 +364,7 @@ export default function RrhhDashboard() {
             <Building2 className="w-8 h-8 text-white" />
           </div>
           <div>
-            <h1 className="text-3xl font-extrabold text-brand-blue tracking-tight">SudeParking RRHH</h1>
+            <h1 className="text-3xl font-extrabold text-brand-blue tracking-tight">estacionamiento.sudeaseg.gob.ve RRHH</h1>
             <p className="text-slate-500 font-medium">Auditoría y Gestión de Reembolsos</p>
           </div>
         </div>
@@ -411,10 +437,18 @@ export default function RrhhDashboard() {
                 <p className="text-sm font-bold text-emerald-300 mt-1">≈ ${totalMontoUsd.toLocaleString('de-DE', {minimumFractionDigits: 2, maximumFractionDigits: 2})} USD</p>
               </div>
               
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <div className="bg-black/20 rounded-2xl p-4 border border-white/10 backdrop-blur-sm">
                   <p className="text-xs text-blue-200 mb-1 font-medium">Tickets</p>
                   <p className="text-2xl font-bold text-white">{totalTickets}</p>
+                </div>
+                <div className="bg-black/20 rounded-2xl p-4 border border-white/10 backdrop-blur-sm">
+                  <p className="text-xs text-blue-200 mb-1 font-medium">Pers. Moto</p>
+                  <p className="text-2xl font-bold text-white">{totalMotos}</p>
+                </div>
+                <div className="bg-black/20 rounded-2xl p-4 border border-white/10 backdrop-blur-sm">
+                  <p className="text-xs text-blue-200 mb-1 font-medium">Pers. Carro</p>
+                  <p className="text-2xl font-bold text-white">{totalCarros}</p>
                 </div>
                 <div className="bg-black/20 rounded-2xl p-4 border border-white/10 backdrop-blur-sm">
                   <p className="text-xs text-blue-200 mb-1 font-medium">Promedio</p>

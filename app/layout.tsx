@@ -4,7 +4,7 @@ import "./globals.css";
 import Providers from "./Providers";
 
 export const metadata: Metadata = {
-  title: "SudeParking",
+  title: "estacionamiento.sudeaseg.gob.ve",
   description: "Registro de facturas de estacionamiento",
 };
 
