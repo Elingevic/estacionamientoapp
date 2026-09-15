@@ -19,6 +19,7 @@ export default function Home() {
   const [ocrProgress, setOcrProgress] = useState<string>("");
   const [bcvRate, setBcvRate] = useState<number>(587.40);
   const [infoModal, setInfoModal] = useState<string | null>(null);
+  const [errorModal, setErrorModal] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     fecha: new Date().toLocaleDateString("en-CA", { timeZone: "America/Caracas" }),
@@ -35,7 +36,10 @@ export default function Home() {
   const [editLoading, setEditLoading] = useState(false);
 
   const [startDate, setStartDate] = useState(() => {
-    const d = new Date(); d.setDate(d.getDate() - 7); return d.toISOString().split("T")[0];
+    const d = new Date();
+    const day = d.getDay() || 7;
+    d.setDate(d.getDate() - day + 1);
+    return d.toISOString().split("T")[0];
   });
   const [endDate, setEndDate] = useState(() => new Date().toISOString().split("T")[0]);
 
@@ -104,7 +108,12 @@ export default function Home() {
       setEditingFactura(null);
       fetchMyFacturas(true);
     } catch (err: any) {
-      alert("Error actualizando: " + (err?.message || "Desconocido"));
+      const msg = err?.message || "Error desconocido";
+      if (msg.includes("uq_parking_invoice")) {
+        setErrorModal("El número de factura ya existe. Verifica e inténtalo de nuevo.");
+      } else {
+        setErrorModal("Error actualizando: " + msg);
+      }
     } finally {
       setEditLoading(false);
     }
@@ -257,7 +266,12 @@ export default function Home() {
 
       setStep("success");
     } catch (error: any) {
-      alert("Error: " + (error?.message || "Desconocido"));
+      const msg = error?.message || "Error desconocido";
+      if (msg.includes("uq_parking_invoice")) {
+        setErrorModal("Esta factura ya fue registrada previamente en el sistema. Verifica el número e inténtalo de nuevo.");
+      } else {
+        setErrorModal("Error: " + msg);
+      }
     } finally {
       setLoading(false);
     }
@@ -620,6 +634,27 @@ export default function Home() {
             <button 
               onClick={() => setInfoModal(null)} 
               className="w-full bg-brand-blue hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-colors shadow-md"
+            >
+              Entendido
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE ERROR */}
+      {errorModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="relative max-w-sm w-full bg-white rounded-3xl p-6 shadow-2xl border border-slate-100 text-center animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+            <div className="w-12 h-12 bg-red-50 text-brand-red rounded-full flex items-center justify-center mx-auto mb-4">
+              <ShieldAlert className="w-6 h-6" />
+            </div>
+            <h3 className="text-lg font-bold text-slate-800 mb-2">Atención</h3>
+            <p className="text-sm text-slate-500 font-medium mb-6 leading-relaxed">
+              {errorModal}
+            </p>
+            <button 
+              onClick={() => setErrorModal(null)} 
+              className="w-full bg-brand-red hover:bg-red-700 text-white font-bold py-3 rounded-xl transition-colors shadow-md"
             >
               Entendido
             </button>
