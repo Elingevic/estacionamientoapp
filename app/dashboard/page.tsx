@@ -25,6 +25,10 @@ function DashboardContent() {
 
   const [bcvRate, setBcvRate] = useState<number>(587.40);
   const [searchTerm, setSearchTerm] = useState("");
+  
+  const [tableSearchTerm, setTableSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   const setQuickFilter = (type: 'semana' | 'mes' | 'todo') => {
     const d = new Date();
@@ -135,6 +139,8 @@ function DashboardContent() {
   const montoMotosUsd = filteredFacturas.filter(f => f.vehicle_type === "moto").reduce((sum, f) => sum + Number(f.amount) / (f.exchange_rate || bcvRate), 0);
 
   const totalPersonas = new Set(filteredFacturas.map(f => f.user_id)).size;
+  const totalPersonasCarros = new Set(filteredFacturas.filter(f => f.vehicle_type === "carro" || !f.vehicle_type).map(f => f.user_id)).size;
+  const totalPersonasMotos = new Set(filteredFacturas.filter(f => f.vehicle_type === "moto").map(f => f.user_id)).size;
 
   // Gastos mensuales para gráfica
   const mesesNombres = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
@@ -208,8 +214,8 @@ function DashboardContent() {
               <DollarSign className="w-6 h-6" />
             </div>
             <p className="text-slate-500 font-bold uppercase text-xs tracking-wider">Gasto Total</p>
-            <h2 className="text-3xl font-extrabold text-slate-800 mt-1">Bs. {totalMonto.toFixed(2)}</h2>
-            <p className="text-emerald-600 font-bold text-sm mt-1">≈ ${totalMontoUsd.toFixed(2)} USD</p>
+            <h2 className="text-3xl font-extrabold text-slate-800 mt-1">Bs. {totalMonto.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2})}</h2>
+            <p className="text-emerald-600 font-bold text-sm mt-1">≈ ${totalMontoUsd.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2})} USD</p>
           </div>
           
           <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
@@ -240,7 +246,10 @@ function DashboardContent() {
               </div>
               <p className="text-blue-200 font-bold uppercase text-xs tracking-wider">Carros</p>
               <h2 className="text-3xl font-extrabold text-white mt-1">{totalCarros} <span className="text-sm font-medium text-blue-200">tickets</span></h2>
-              <p className="text-sm font-medium text-emerald-300 mt-2">${montoCarrosUsd.toFixed(2)}</p>
+              <div className="flex justify-between items-center mt-2">
+                <p className="text-sm font-medium text-emerald-300">${montoCarrosUsd.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2})}</p>
+                <p className="text-xs font-bold text-blue-200 flex items-center gap-1"><Users className="w-3 h-3"/> {totalPersonasCarros} pers.</p>
+              </div>
             </div>
           </div>
 
@@ -254,7 +263,10 @@ function DashboardContent() {
               </div>
               <p className="text-red-200 font-bold uppercase text-xs tracking-wider">Motos</p>
               <h2 className="text-3xl font-extrabold text-white mt-1">{totalMotos} <span className="text-sm font-medium text-red-200">tickets</span></h2>
-              <p className="text-sm font-medium text-emerald-300 mt-2">${montoMotosUsd.toFixed(2)}</p>
+              <div className="flex justify-between items-center mt-2">
+                <p className="text-sm font-medium text-emerald-300">${montoMotosUsd.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2})}</p>
+                <p className="text-xs font-bold text-red-200 flex items-center gap-1"><Users className="w-3 h-3"/> {totalPersonasMotos} pers.</p>
+              </div>
             </div>
           </div>
         </div>
@@ -329,7 +341,16 @@ function DashboardContent() {
         {/* Desglose por Persona */}
         {isRrhh && (
           <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
-            <h3 className="font-bold text-lg text-slate-800 mb-6 flex items-center gap-2"><Users className="w-5 h-5 text-brand-blue"/> Desglose por Persona</h3>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+              <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2"><Users className="w-5 h-5 text-brand-blue"/> Desglose por Persona</h3>
+              <input 
+                type="text" 
+                placeholder="Buscar empleado..." 
+                value={tableSearchTerm}
+                onChange={e => { setTableSearchTerm(e.target.value); setCurrentPage(1); }}
+                className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm font-medium text-slate-600 outline-none focus:border-brand-blue w-full sm:w-64" 
+              />
+            </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm whitespace-nowrap">
                 <thead className="bg-slate-50 border-b border-slate-200">
@@ -344,42 +365,69 @@ function DashboardContent() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {Object.entries(filteredFacturas.reduce((acc, f) => {
-                    const isMoto = f.vehicle_type === "moto";
-                    if (!acc[f.user_id]) acc[f.user_id] = { tickets: 0, bs: 0, usd: 0, carros: 0, motos: 0 };
-                    acc[f.user_id].tickets += 1;
-                    acc[f.user_id].bs += Number(f.amount);
-                    acc[f.user_id].usd += Number(f.amount) / bcvRate;
-                    if (isMoto) acc[f.user_id].motos += 1;
-                    else acc[f.user_id].carros += 1;
-                    return acc;
-                  }, {} as Record<string, {tickets: number, bs: number, usd: number, carros: number, motos: number}>))
-                  .sort((a: any, b: any) => b[1].bs - a[1].bs)
-                  .map(([user, data]: [string, any], idx) => {
-                    const avgBs = data.bs / data.tickets;
-                    const avgUsd = data.usd / data.tickets;
+                  {(() => {
+                    const tableData = Object.entries(filteredFacturas.reduce((acc, f) => {
+                      const isMoto = f.vehicle_type === "moto";
+                      if (!acc[f.user_id]) acc[f.user_id] = { tickets: 0, bs: 0, usd: 0, carros: 0, motos: 0 };
+                      acc[f.user_id].tickets += 1;
+                      acc[f.user_id].bs += Number(f.amount);
+                      acc[f.user_id].usd += Number(f.amount) / (f.exchange_rate || bcvRate);
+                      if (isMoto) acc[f.user_id].motos += 1;
+                      else acc[f.user_id].carros += 1;
+                      return acc;
+                    }, {} as Record<string, {tickets: number, bs: number, usd: number, carros: number, motos: number}>))
+                    .filter(([user]) => user.toLowerCase().includes(tableSearchTerm.toLowerCase()))
+                    .sort((a: any, b: any) => b[1].bs - a[1].bs);
+
+                    const totalPages = Math.ceil(tableData.length / itemsPerPage) || 1;
+                    const paginatedData = tableData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
                     return (
-                      <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
-                        <td className="px-4 py-3 font-bold text-slate-700">{user}</td>
-                        <td className="px-4 py-3 text-center text-slate-600 font-medium">
-                          <span className="bg-slate-100 px-2.5 py-1 rounded-full text-xs font-bold">{data.tickets}</span>
-                        </td>
-                        <td className="px-4 py-3 text-center text-xs font-bold text-slate-600">
-                          <span className="text-brand-blue">{data.carros}</span>
-                          <span className="mx-1.5">/</span>
-                          <span className="text-brand-red">{data.motos}</span>
-                        </td>
-                        <td className="px-4 py-3 text-right text-xs">
-                          <p className="font-bold text-slate-700">Bs. {avgBs.toFixed(2)}</p>
-                        </td>
-                        <td className="px-4 py-3 text-right text-xs">
-                          <p className="font-bold text-emerald-600">${avgUsd.toFixed(2)}</p>
-                        </td>
-                        <td className="px-4 py-3 text-right font-bold text-brand-blue">Bs. {data.bs.toFixed(2)}</td>
-                        <td className="px-4 py-3 text-right font-bold text-emerald-600">${data.usd.toFixed(2)}</td>
-                      </tr>
+                      <>
+                        {paginatedData.map(([user, data]: [string, any], idx) => {
+                          const avgBs = data.bs / data.tickets;
+                          const avgUsd = data.usd / data.tickets;
+                          return (
+                            <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
+                              <td className="px-4 py-3 font-bold text-slate-700">{user}</td>
+                              <td className="px-4 py-3 text-center text-slate-600 font-medium">
+                                <span className="bg-slate-100 px-2.5 py-1 rounded-full text-xs font-bold">{data.tickets}</span>
+                              </td>
+                              <td className="px-4 py-3 text-center text-xs font-bold text-slate-600">
+                                <span className="text-brand-blue">{data.carros}</span>
+                                <span className="mx-1.5">/</span>
+                                <span className="text-brand-red">{data.motos}</span>
+                              </td>
+                              <td className="px-4 py-3 text-right text-xs">
+                                <p className="font-bold text-slate-700">Bs. {avgBs.toLocaleString('de-DE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
+                              </td>
+                              <td className="px-4 py-3 text-right text-xs">
+                                <p className="font-bold text-emerald-600">${avgUsd.toLocaleString('de-DE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
+                              </td>
+                              <td className="px-4 py-3 text-right font-bold text-brand-blue">Bs. {data.bs.toLocaleString('de-DE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                              <td className="px-4 py-3 text-right font-bold text-emerald-600">${data.usd.toLocaleString('de-DE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                            </tr>
+                          );
+                        })}
+                        {tableData.length === 0 && (
+                          <tr><td colSpan={7} className="px-4 py-8 text-center text-slate-400 font-medium">No se encontraron resultados</td></tr>
+                        )}
+                        {tableData.length > 0 && (
+                          <tr>
+                            <td colSpan={7} className="px-4 py-4 border-t border-slate-100">
+                              <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                                <span className="text-xs text-slate-500 font-medium">Mostrando {((currentPage - 1) * itemsPerPage) + 1} a {Math.min(currentPage * itemsPerPage, tableData.length)} de {tableData.length} personas</span>
+                                <div className="flex gap-1">
+                                  <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="px-3 py-1 rounded-lg border border-slate-200 text-slate-600 font-bold text-xs disabled:opacity-50 hover:bg-slate-50 transition-colors">Anterior</button>
+                                  <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="px-3 py-1 rounded-lg border border-slate-200 text-slate-600 font-bold text-xs disabled:opacity-50 hover:bg-slate-50 transition-colors">Siguiente</button>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </>
                     );
-                  })}
+                  })()}
                 </tbody>
               </table>
             </div>
