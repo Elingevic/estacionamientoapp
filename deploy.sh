@@ -13,8 +13,12 @@ npm install
 echo "🏗️ Compilando Next.js..."
 npm run build
 
-# 4. Reiniciar PM2 sin tiempo de inactividad
-echo "🔄 Reiniciando aplicación con PM2..."
-pm2 reload estacionamiento || pm2 start ecosystem.config.js
+# 4. Reiniciar PM2 limpiando procesos zombis
+echo "🧹 Limpiando procesos antiguos..."
+pm2 delete estacionamiento || true
+pkill -f next-server || true
+
+echo "🔄 Iniciando aplicación con PM2..."
+pm2 start ecosystem.config.js
 
 echo "✅ ¡Despliegue completado con éxito!"
