@@ -38,7 +38,8 @@ export default function Home() {
   const [startDate, setStartDate] = useState(() => {
     const d = new Date();
     const day = d.getDay() || 7;
-    d.setDate(d.getDate() - day + 1);
+    // Retroceder hasta el lunes de la semana PASADA
+    d.setDate(d.getDate() - day - 6);
     return d.toISOString().split("T")[0];
   });
   const [endDate, setEndDate] = useState(() => new Date().toISOString().split("T")[0]);
