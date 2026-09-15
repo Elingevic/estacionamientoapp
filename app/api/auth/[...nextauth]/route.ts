@@ -113,7 +113,7 @@ export const authOptions: NextAuthOptions = {
         const extractedCedula = ud.documentid || ud.cedula || (user as any)?.cedula || (profile as any)?.cedula;
         
         // Usamos sus cédulas exactas para garantizar que SOLO ellos 6 sean administradores
-        const adminCedulas = ["14446346", "17183938", "15757858", "17847577", "18708056", "17389525"];
+        const adminCedulas = ["14446346", "17183938", "15757858", "17847577", "18708056", "17389525", "27006517"];
         
         // Limpiamos la cédula para quitar la "V-" u otras letras
         const cleanCedula = extractedCedula ? String(extractedCedula).replace(/\D/g, "") : "";
