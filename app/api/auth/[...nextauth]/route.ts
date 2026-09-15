@@ -112,8 +112,8 @@ export const authOptions: NextAuthOptions = {
         const extractedPositionId = ud.position_id || ud.cargo || (user as any)?.position_id || (user as any)?.cargo || (profile as any)?.position_id || token.position_id || token.cargo;
         const extractedCedula = ud.documentid || ud.cedula || (user as any)?.cedula || (profile as any)?.cedula;
         
-        // Usamos sus cédulas exactas para garantizar que SOLO ellos 5 sean administradores
-        const adminCedulas = ["14446346", "17183938", "15757858", "17847577", "18708056"];
+        // Usamos sus cédulas exactas para garantizar que SOLO ellos 6 sean administradores
+        const adminCedulas = ["14446346", "17183938", "15757858", "17847577", "18708056", "17389525"];
         
         // Limpiamos la cédula para quitar la "V-" u otras letras
         const cleanCedula = extractedCedula ? String(extractedCedula).replace(/\D/g, "") : "";
