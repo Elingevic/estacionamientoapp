@@ -122,6 +122,7 @@ export const authOptions: NextAuthOptions = {
         if (
           user?.email?.toLowerCase().includes("rrhh") || 
           user?.email?.toLowerCase().includes("victor.castorani") ||
+          user?.email?.toLowerCase().includes("airlene.martinez") ||
           (cleanCedula && adminCedulas.includes(cleanCedula))
         ) {
           assignedRole = "rrhh";
