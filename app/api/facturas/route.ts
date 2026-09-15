@@ -470,3 +470,42 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ error: error.message || "Error interno" }, { status: 500 });
   }
 }
+
+// DELETE: Eliminar factura (Solo RRHH)
+export async function DELETE(req: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session || !session.user) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get("id");
+
+    if (!id) {
+      return NextResponse.json({ error: "Falta ID de factura" }, { status: 400 });
+    }
+
+    const isRrhh = (session.user as any).role === "rrhh";
+    if (!isRrhh) {
+      return NextResponse.json({ error: "Acceso denegado: Solo RRHH puede eliminar registros" }, { status: 403 });
+    }
+
+    // Verificar si existe y si ya fue exportada
+    const checkRes = await query(`SELECT report_sequence FROM invoice WHERE id = $1`, [id]);
+    if (checkRes.rows.length === 0) {
+      return NextResponse.json({ error: "Factura no encontrada" }, { status: 404 });
+    }
+
+    if (checkRes.rows[0].report_sequence) {
+      return NextResponse.json({ error: "No se puede eliminar porque ya fue procesada en un reporte" }, { status: 400 });
+    }
+
+    await query(`DELETE FROM invoice WHERE id = $1`, [id]);
+    
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    console.error("Error al eliminar factura:", error);
+    return NextResponse.json({ error: error.message || "Error interno" }, { status: 500 });
+  }
+}

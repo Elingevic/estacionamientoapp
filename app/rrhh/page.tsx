@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
-import { Download, Calendar, Search, ExternalLink, Activity, DollarSign, Receipt, AlertCircle, X, ShieldAlert, Loader2, Building2, FileText, LogOut, BarChart3, Car, Bike, Pencil, Lock, Info } from "lucide-react";
+import { Download, Calendar, Search, ExternalLink, Activity, DollarSign, Receipt, AlertCircle, X, ShieldAlert, Loader2, Building2, FileText, LogOut, BarChart3, Car, Bike, Pencil, Lock, Info, Trash2 } from "lucide-react";
 import Link from "next/link";
 import * as XLSX from "xlsx-js-style";
 import { saveAs } from "file-saver";
@@ -94,6 +94,21 @@ export default function RrhhDashboard() {
       alert("Error actualizando: " + (err?.message || "Desconocido"));
     } finally {
       setEditLoading(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("¿Estás seguro de que deseas eliminar este registro? El empleado tendrá que cargarlo nuevamente.")) return;
+    try {
+      const res = await fetch(`/api/facturas?id=${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Error al eliminar");
+      }
+      alert("Factura eliminada correctamente");
+      fetchFacturas(true);
+    } catch (err: any) {
+      alert(err.message);
     }
   };
 
@@ -495,16 +510,39 @@ export default function RrhhDashboard() {
                         <td className="px-6 py-4 text-right">
                           <p className="text-sm font-bold text-slate-500">${(Number(f.amount) / (f.exchange_rate || bcvRate)).toFixed(2)}</p>
                         </td>
-                        <td className="px-6 py-4 flex items-center justify-center gap-2">
+                        <td className="px-6 py-4 flex flex-wrap items-center justify-center gap-2">
                           {f.image_url ? (
                             <button 
                               onClick={() => setSelectedImage(f.image_url)}
                               className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-brand-blue/5 text-brand-blue hover:bg-brand-blue/10 transition-colors font-bold text-xs"
                             >
-                              <ExternalLink className="w-4 h-4" /> Ver Ticket
+                              <ExternalLink className="w-4 h-4" /> Ver
                             </button>
                           ) : (
                             <span className="text-xs text-slate-400 font-medium italic">Sin evidencia</span>
+                          )}
+                          {!f.report_sequence ? (
+                            <>
+                              <button 
+                                onClick={() => setEditingFactura(f)}
+                                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 transition-colors font-bold text-xs"
+                              >
+                                <Pencil className="w-4 h-4" /> Editar
+                              </button>
+                              <button 
+                                onClick={() => handleDelete(f.id)}
+                                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-brand-red/5 text-brand-red hover:bg-brand-red/10 transition-colors font-bold text-xs"
+                              >
+                                <Trash2 className="w-4 h-4" /> Eliminar
+                              </button>
+                            </>
+                          ) : (
+                            <span 
+                              title="Factura ya procesada" 
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-slate-50 border border-slate-200 text-[10px] font-bold text-slate-400 cursor-help"
+                            >
+                              <Lock className="w-3 h-3" /> Procesada
+                            </span>
                           )}
                         </td>
                       </tr>
