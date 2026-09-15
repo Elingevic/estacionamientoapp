@@ -497,10 +497,6 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: "Factura no encontrada" }, { status: 404 });
     }
 
-    if (checkRes.rows[0].report_sequence) {
-      return NextResponse.json({ error: "No se puede eliminar porque ya fue procesada en un reporte" }, { status: 400 });
-    }
-
     await query(`DELETE FROM invoice WHERE id = $1`, [id]);
     
     return NextResponse.json({ success: true });

@@ -521,8 +521,6 @@ export default function RrhhDashboard() {
                           ) : (
                             <span className="text-xs text-slate-400 font-medium italic">Sin evidencia</span>
                           )}
-                          {!f.report_sequence ? (
-                            <>
                               <button 
                                 onClick={() => setEditingFactura(f)}
                                 className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 transition-colors font-bold text-xs"
@@ -535,15 +533,14 @@ export default function RrhhDashboard() {
                               >
                                 <Trash2 className="w-4 h-4" /> Eliminar
                               </button>
-                            </>
-                          ) : (
-                            <span 
-                              title="Factura ya procesada" 
-                              className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-slate-50 border border-slate-200 text-[10px] font-bold text-slate-400 cursor-help"
-                            >
-                              <Lock className="w-3 h-3" /> Procesada
-                            </span>
-                          )}
+                              {f.report_sequence && (
+                                <span 
+                                  title="Factura ya exportada en nómina" 
+                                  className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-slate-50 border border-slate-200 text-[10px] font-bold text-slate-400 cursor-help"
+                                >
+                                  <Lock className="w-3 h-3" />
+                                </span>
+                              )}
                         </td>
                       </tr>
                     ))
