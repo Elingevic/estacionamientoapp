@@ -301,7 +301,7 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-800 p-4 font-sans">
-      <div className="max-w-md mx-auto space-y-6 py-4">
+      <div className="max-w-md lg:max-w-5xl mx-auto space-y-6 py-4">
         
         {isRrhh && (
           <div className="bg-emerald-600 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-white shadow-lg shadow-emerald-600/20">
@@ -351,8 +351,10 @@ export default function Home() {
           </div>
         </header>
 
-        <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-xl">
-          {step === "capture" && (
+        <div className={`lg:grid lg:gap-8 items-start ${step === "review" ? "lg:grid-cols-1" : "lg:grid-cols-2"}`}>
+          
+          <div className={`bg-white border border-slate-100 rounded-3xl p-6 shadow-xl mb-6 lg:mb-0 ${step === "review" ? "max-w-md mx-auto w-full" : ""}`}>
+            {step === "capture" && (
             <div className="flex flex-col items-center justify-center space-y-6 py-8">
               <div className="flex w-full gap-4 px-2">
                 <div className="flex-1 flex flex-col items-center justify-center p-6 bg-slate-50 border-2 border-dashed border-brand-red/40 rounded-3xl hover:bg-brand-red/5 cursor-pointer transition-all group" onClick={() => fileInputRef.current?.click()}>
@@ -561,7 +563,7 @@ export default function Home() {
             )}
           </div>
         )}
-
+        </div>
       </div>
 
       {/* MODAL PARA EDITAR FACTURA */}
