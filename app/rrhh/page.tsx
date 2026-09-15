@@ -407,8 +407,8 @@ export default function RrhhDashboard() {
             <div className="space-y-4 relative z-10">
               <div className="bg-black/20 rounded-2xl p-5 border border-white/10 backdrop-blur-sm">
                 <p className="text-sm text-blue-200 flex items-center gap-2 mb-1 font-medium"><DollarSign className="w-4 h-4"/> Deuda Total</p>
-                <p className="text-4xl font-extrabold text-white">Bs. {totalMonto.toFixed(2)}</p>
-                <p className="text-sm font-bold text-emerald-300 mt-1">≈ ${totalMontoUsd.toFixed(2)} USD</p>
+                <p className="text-4xl font-extrabold text-white">Bs. {totalMonto.toLocaleString('de-DE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
+                <p className="text-sm font-bold text-emerald-300 mt-1">≈ ${totalMontoUsd.toLocaleString('de-DE', {minimumFractionDigits: 2, maximumFractionDigits: 2})} USD</p>
               </div>
               
               <div className="grid grid-cols-2 gap-4">
@@ -418,8 +418,8 @@ export default function RrhhDashboard() {
                 </div>
                 <div className="bg-black/20 rounded-2xl p-4 border border-white/10 backdrop-blur-sm">
                   <p className="text-xs text-blue-200 mb-1 font-medium">Promedio</p>
-                  <p className="text-xl font-bold text-white">Bs. {promedioTicket.toFixed(2)}</p>
-                  <p className="text-xs font-bold text-emerald-300">≈ ${promedioTicketUsd.toFixed(2)}</p>
+                  <p className="text-xl font-bold text-white">Bs. {promedioTicket.toLocaleString('de-DE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
+                  <p className="text-xs font-bold text-emerald-300">≈ ${promedioTicketUsd.toLocaleString('de-DE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
                 </div>
               </div>
             </div>
@@ -505,10 +505,10 @@ export default function RrhhDashboard() {
                         </td>
                         <td className="px-6 py-4 font-mono font-medium text-slate-500">{f.invoice_number}</td>
                         <td className="px-6 py-4 text-right">
-                          <p className="font-bold text-emerald-600">Bs. {Number(f.amount).toFixed(2)}</p>
+                          <p className="font-bold text-emerald-600">Bs. {Number(f.amount).toLocaleString('de-DE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
                         </td>
                         <td className="px-6 py-4 text-right">
-                          <p className="text-sm font-bold text-slate-500">${(Number(f.amount) / (f.exchange_rate || bcvRate)).toFixed(2)}</p>
+                          <p className="text-sm font-bold text-slate-500">${(Number(f.amount) / (f.exchange_rate || bcvRate)).toLocaleString('de-DE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
                         </td>
                         <td className="px-6 py-4 flex flex-wrap items-center justify-center gap-2">
                           {f.image_url ? (
@@ -552,10 +552,10 @@ export default function RrhhDashboard() {
                           <span className="bg-slate-100 px-3 py-1 rounded-full text-xs font-bold text-slate-500">{emp.totalTickets} tickets</span>
                         </td>
                         <td className="px-6 py-4 text-right">
-                          <p className="font-bold text-brand-blue">Bs. {emp.totalMonto.toFixed(2)}</p>
+                          <p className="font-bold text-brand-blue">Bs. {emp.totalMonto.toLocaleString('de-DE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
                         </td>
                         <td className="px-6 py-4 text-right">
-                          <p className="font-bold text-emerald-600">${emp.totalMontoUsd.toFixed(2)}</p>
+                          <p className="font-bold text-emerald-600">${emp.totalMontoUsd.toLocaleString('de-DE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
                         </td>
                         <td className="px-6 py-4 flex items-center justify-center gap-2">
                           <button 
