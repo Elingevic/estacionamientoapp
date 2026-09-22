@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
             p.description as parking_name, 
             p.address as location, 
             i.amount, 
-            i.exchange_rate,
+            NULL::numeric as exchange_rate,
             i.image_url, 
             LOWER(v.description) as vehicle_type, 
             i.report_sequence, 
@@ -66,7 +66,7 @@ export async function GET(req: NextRequest) {
             p.description as parking_name, 
             p.address as location, 
             i.amount, 
-            i.exchange_rate,
+            NULL::numeric as exchange_rate,
             i.image_url, 
             LOWER(v.description) as vehicle_type, 
             i.report_sequence, 
@@ -90,7 +90,7 @@ export async function GET(req: NextRequest) {
           p.description as parking_name, 
           p.address as location, 
           i.amount, 
-          i.exchange_rate,
+          NULL::numeric as exchange_rate,
           i.image_url, 
           LOWER(v.description) as vehicle_type, 
           i.report_sequence, 
@@ -240,11 +240,10 @@ export async function POST(req: NextRequest) {
         issued_at, 
         invoice_number, 
         amount, 
-        exchange_rate,
         image_url, 
         parking_lot_id, 
         vehicle_type_id
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
     `;
     
     const params = [
@@ -253,7 +252,6 @@ export async function POST(req: NextRequest) {
       date,
       invoice_number,
       amount,
-      currentBcvRate,
       image_url || null,
       parkingLotId,
       vehicleTypeId
@@ -452,7 +450,7 @@ export async function PUT(req: NextRequest) {
         p.description as parking_name, 
         p.address as location, 
         i.amount, 
-        i.exchange_rate,
+        NULL::numeric as exchange_rate,
         i.image_url, 
         LOWER(v.description) as vehicle_type, 
         i.report_sequence, 

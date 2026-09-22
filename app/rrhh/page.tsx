@@ -12,21 +12,26 @@ export default function RrhhDashboard() {
   
   const getInitialDates = () => {
     const d = new Date();
-    const day = d.getDay() || 7;
-    const monday = new Date(d);
-    monday.setDate(d.getDate() - day + 1);
-    const sunday = new Date(monday);
-    sunday.setDate(monday.getDate() + 6);
-    return { start: monday.toISOString().split("T")[0], end: sunday.toISOString().split("T")[0] };
+    const day = d.getDay();
+    const shiftedDay = (day + 1) % 7; 
+    const prevSat = new Date(d);
+    prevSat.setDate(d.getDate() - shiftedDay - 7);
+    const prevFri = new Date(prevSat);
+    prevFri.setDate(prevSat.getDate() + 6);
+    return { start: prevSat.toISOString().split("T")[0], end: prevFri.toISOString().split("T")[0] };
   };
 
   const getInitialWeek = () => {
     const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
-    const week1 = new Date(d.getFullYear(), 0, 4);
-    const weekNumber = 1 + Math.round(((d.getTime() - week1.getTime()) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
-    return `${d.getFullYear()}-W${weekNumber.toString().padStart(2, '0')}`;
+    const day = d.getDay();
+    const shiftedDay = (day + 1) % 7;
+    const prevSat = new Date(d);
+    prevSat.setDate(d.getDate() - shiftedDay - 7);
+    prevSat.setHours(0, 0, 0, 0);
+    prevSat.setDate(prevSat.getDate() + 3 - (prevSat.getDay() + 6) % 7);
+    const week1 = new Date(prevSat.getFullYear(), 0, 4);
+    const weekNumber = 1 + Math.round(((prevSat.getTime() - week1.getTime()) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
+    return `${prevSat.getFullYear()}-W${weekNumber.toString().padStart(2, '0')}`;
   };
 
   const [facturas, setFacturas] = useState<any[]>([]);
@@ -156,12 +161,15 @@ export default function RrhhDashboard() {
     
     const targetMonday = new Date(firstMonday);
     targetMonday.setDate(firstMonday.getDate() + (week - 1) * 7);
-    
-    const targetSunday = new Date(targetMonday);
-    targetSunday.setDate(targetMonday.getDate() + 6);
 
-    setExportStartDate(targetMonday.toISOString().split('T')[0]);
-    setExportEndDate(targetSunday.toISOString().split('T')[0]);
+    const targetSaturday = new Date(targetMonday);
+    targetSaturday.setDate(targetMonday.getDate() - 2);
+    
+    const targetFriday = new Date(targetSaturday);
+    targetFriday.setDate(targetSaturday.getDate() + 6);
+
+    setExportStartDate(targetSaturday.toISOString().split('T')[0]);
+    setExportEndDate(targetFriday.toISOString().split('T')[0]);
   };
   
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -283,21 +291,23 @@ export default function RrhhDashboard() {
         const totalBs = facts.reduce((sum: number, f: any) => sum + Number(f.amount), 0);
         const totalUsd = facts.reduce((sum: number, f: any) => sum + (Number(f.amount) / (f.exchange_rate || bcvRate)), 0);
 
+        const round2 = (val: number) => Math.round((val + Number.EPSILON) * 100) / 100;
+
         return {
           "Empleado": formatName(email),
           "Desde": exportStartDate,
           "Hasta": exportEndDate,
           "Tickets de Carro": carros.length,
-          "Tarifa Carro": tarifaCarro || 0,
-          "Total Bs. Carro": totalBsCarro || 0,
-          "Total USD Carro": totalUsdCarro || 0,
+          "Tarifa Carro": round2(tarifaCarro),
+          "Total Bs. Carro": round2(totalBsCarro),
+          "Total USD Carro": round2(totalUsdCarro),
           "Tickets de Moto": motos.length,
-          "Tarifa Moto": tarifaMoto || 0,
-          "Total Bs. Moto": totalBsMoto || 0,
-          "Total USD Moto": totalUsdMoto || 0,
+          "Tarifa Moto": round2(tarifaMoto),
+          "Total Bs. Moto": round2(totalBsMoto),
+          "Total USD Moto": round2(totalUsdMoto),
           "Total Cantidad de Tickets": facts.length,
-          "Monto Total Bs.": totalBs,
-          "Monto Total USD": totalUsd,
+          "Monto Total Bs.": round2(totalBs),
+          "Monto Total USD": round2(totalUsd),
         };
       });
 
