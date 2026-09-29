@@ -7,31 +7,18 @@ import Link from "next/link";
 import * as XLSX from "xlsx-js-style";
 import { saveAs } from "file-saver";
 
+import { getCurrentPayrollCycle, getPayrollWeekString } from "../../lib/dates";
+import { round2 } from "../../lib/formatters";
+
 export default function RrhhDashboard() {
   const { data: session, status } = useSession();
   
   const getInitialDates = () => {
-    const d = new Date();
-    const day = d.getDay();
-    const shiftedDay = (day + 1) % 7; 
-    const prevSat = new Date(d);
-    prevSat.setDate(d.getDate() - shiftedDay - 7);
-    const prevFri = new Date(prevSat);
-    prevFri.setDate(prevSat.getDate() + 6);
-    return { start: prevSat.toISOString().split("T")[0], end: prevFri.toISOString().split("T")[0] };
+    return getCurrentPayrollCycle();
   };
 
   const getInitialWeek = () => {
-    const d = new Date();
-    const day = d.getDay();
-    const shiftedDay = (day + 1) % 7;
-    const prevSat = new Date(d);
-    prevSat.setDate(d.getDate() - shiftedDay - 7);
-    prevSat.setHours(0, 0, 0, 0);
-    prevSat.setDate(prevSat.getDate() + 3 - (prevSat.getDay() + 6) % 7);
-    const week1 = new Date(prevSat.getFullYear(), 0, 4);
-    const weekNumber = 1 + Math.round(((prevSat.getTime() - week1.getTime()) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
-    return `${prevSat.getFullYear()}-W${weekNumber.toString().padStart(2, '0')}`;
+    return getPayrollWeekString();
   };
 
   const [facturas, setFacturas] = useState<any[]>([]);
@@ -291,8 +278,6 @@ export default function RrhhDashboard() {
         const totalBs = facts.reduce((sum: number, f: any) => sum + Number(f.amount), 0);
         const totalUsd = facts.reduce((sum: number, f: any) => sum + (Number(f.amount) / (f.exchange_rate || bcvRate)), 0);
 
-        const round2 = (val: number) => Math.round((val + Number.EPSILON) * 100) / 100;
-
         return {
           "Empleado": formatName(email),
           "Desde": exportStartDate,
@@ -320,9 +305,9 @@ export default function RrhhDashboard() {
         "Fecha Escaneo": f.date,
         "Empleado": formatName(f.user_id),
         "Nro. Factura": f.invoice_number,
-        "Tipo de Cambio (BCV)": f.exchange_rate || bcvRate,
-        "Monto Bs.": Number(f.amount),
-        "Monto USD": Number(f.amount) / (f.exchange_rate || bcvRate),
+        "Tipo de Cambio (BCV)": round2(Number(f.exchange_rate || bcvRate)),
+        "Monto Bs.": round2(Number(f.amount)),
+        "Monto USD": round2(Number(f.amount) / (f.exchange_rate || bcvRate)),
       }));
 
       if (dataDetalles.length > 0) {
@@ -385,23 +370,14 @@ export default function RrhhDashboard() {
           <Link href="/dashboard" className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-blue-100 text-brand-blue font-bold hover:bg-blue-200 transition-all shadow-sm">
             <BarChart3 className="w-5 h-5" /> Estadísticas
           </Link>
-          <button onClick={async () => {
-            const keycloakIssuer = process.env.NEXT_PUBLIC_KEYCLOAK_ISSUER;
-            const clientId = process.env.NEXT_PUBLIC_KEYCLOAK_CLIENT_ID;
-            if (!keycloakIssuer || !clientId) {
-              console.error("Faltan variables de entorno NEXT_PUBLIC_KEYCLOAK_ISSUER o NEXT_PUBLIC_KEYCLOAK_CLIENT_ID");
-              return;
-            }
-            const idToken = (session as any)?.id_token;
-            
-            const postLogoutRedirectUri = `${window.location.origin}/`;
-            let logoutUrl = `${keycloakIssuer}/protocol/openid-connect/logout?client_id=${encodeURIComponent(clientId)}&post_logout_redirect_uri=${encodeURIComponent(postLogoutRedirectUri)}`;
-            if (idToken) {
-              logoutUrl += `&id_token_hint=${encodeURIComponent(idToken)}`;
-            }
-            
-            await signOut({ callbackUrl: logoutUrl });
-          }} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-xl border-2 border-slate-200 text-slate-600 font-bold hover:bg-slate-50 transition-all">
+          <button 
+            onClick={() => {
+              window.location.href = "/api/auth/federated-logout";
+            }} 
+            aria-label="Cerrar sesión"
+            title="Cerrar sesión"
+            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-xl border-2 border-slate-200 text-slate-600 font-bold hover:bg-slate-50 transition-all"
+          >
             <LogOut className="w-5 h-5" /> Cerrar Sesión
           </button>
           <button onClick={triggerExportModal} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-lg shadow-emerald-600/30 transition-all">

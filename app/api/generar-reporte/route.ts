@@ -6,6 +6,9 @@ import Docxtemplater from "docxtemplater";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "../auth/[...nextauth]/route";
 import { query } from "../../../lib/db";
+import { formatBs } from "../../../lib/formatters";
+
+const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
 export async function GET(request: Request) {
   try {
@@ -19,8 +22,8 @@ export async function GET(request: Request) {
     const end = searchParams.get("end");
     const emailFilter = searchParams.get("email");
     
-    if (!start || !end) {
-      return NextResponse.json({ error: "Faltan fechas start y end" }, { status: 400 });
+    if (!start || !end || !DATE_REGEX.test(start) || !DATE_REGEX.test(end) || isNaN(Date.parse(start)) || isNaN(Date.parse(end))) {
+      return NextResponse.json({ error: "Fechas 'start' y 'end' requeridas y deben tener formato YYYY-MM-DD" }, { status: 400 });
     }
 
     const isRrhh = (session.user as any).role === "rrhh";
@@ -98,10 +101,6 @@ export async function GET(request: Request) {
     const facturas = res.rows;
 
     let total_monto = 0;
-    const numberFormat = new Intl.NumberFormat("en-US", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
 
     const uniqueFacturas: any[] = [];
     const seenFacturas = new Set();
@@ -125,7 +124,7 @@ export async function GET(request: Request) {
 
       return {
         ...f,
-        monto: `Bs. ${numberFormat.format(Number(f.amount))}`,
+        monto: formatBs(f.amount),
         fecha: currentFecha,
         nro_factura: f.invoice_number,
         nombre_estacionamiento: f.parking_name || "No especificado",
@@ -199,7 +198,7 @@ export async function GET(request: Request) {
     doc.render({
       correlativo: correlativo,
       facturas: facturasFormat,
-      total_monto: `Bs. ${numberFormat.format(total_monto)}`,
+      total_monto: formatBs(total_monto),
       fecha_generacion: new Date().toLocaleDateString("es-ES", { timeZone: "America/Caracas" }),
       // Si es RRHH generando el reporte global, indicamos RRHH o la busqueda. Si no, usamos el nombre real.
       nombres: isRrhh && !emailFilter ? "Consolidado RRHH" : userName,
@@ -222,6 +221,6 @@ export async function GET(request: Request) {
 
   } catch (error: any) {
     console.error("Error generando reporte:", error);
-    return NextResponse.json({ error: error.message || "Error interno" }, { status: 500 });
+    return NextResponse.json({ error: "Error al generar el reporte" }, { status: 500 });
   }
 }

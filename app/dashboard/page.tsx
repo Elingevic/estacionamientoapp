@@ -10,6 +10,7 @@ import {
   PieChart, Pie, Cell
 } from "recharts";
 import { Suspense } from 'react';
+import { getCurrentPayrollCycle } from "../../lib/dates";
 
 function DashboardContent() {
   const { data: session, status } = useSession();
@@ -18,20 +19,8 @@ function DashboardContent() {
   const [loading, setLoading] = useState(true);
   const [facturas, setFacturas] = useState<any[]>([]);
 
-  const [startDate, setStartDate] = useState(() => {
-    const d = new Date();
-    const day = d.getDay();
-    const shiftedDay = (day + 1) % 7; 
-    d.setDate(d.getDate() - shiftedDay - 7);
-    return d.toISOString().split("T")[0];
-  });
-  const [endDate, setEndDate] = useState(() => {
-    const d = new Date();
-    const day = d.getDay();
-    const shiftedDay = (day + 1) % 7;
-    d.setDate(d.getDate() - shiftedDay - 1);
-    return d.toISOString().split("T")[0];
-  });
+  const [startDate, setStartDate] = useState(() => getCurrentPayrollCycle().start);
+  const [endDate, setEndDate] = useState(() => getCurrentPayrollCycle().end);
 
   const [bcvRate, setBcvRate] = useState<number>(587.40);
   const [searchTerm, setSearchTerm] = useState("");
@@ -43,17 +32,9 @@ function DashboardContent() {
   const setQuickFilter = (type: 'semana' | 'mes' | 'todo') => {
     const d = new Date();
     if (type === 'semana') {
-      const day = d.getDay();
-      const shiftedDay = (day + 1) % 7; 
-      
-      const prevSat = new Date(d);
-      prevSat.setDate(d.getDate() - shiftedDay - 7);
-      
-      const prevFri = new Date(prevSat);
-      prevFri.setDate(prevSat.getDate() + 6);
-      
-      setStartDate(prevSat.toISOString().split("T")[0]);
-      setEndDate(prevFri.toISOString().split("T")[0]);
+      const cycle = getCurrentPayrollCycle();
+      setStartDate(cycle.start);
+      setEndDate(cycle.end);
     } else if (type === 'mes') {
       const start = new Date(d.getFullYear(), d.getMonth(), 1);
       const end = new Date(d.getFullYear(), d.getMonth() + 1, 0);

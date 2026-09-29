@@ -3,7 +3,11 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "../auth/[...nextauth]/route";
 import { query } from "../../../lib/db";
 import { randomUUID } from "crypto";
+import { getBcvRate } from "../../../lib/bcv";
+import { logAuditAction } from "../../../lib/audit";
 
+const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 const sanitizeInput = (str: any) => {
   if (typeof str !== 'string') return str;
@@ -23,6 +27,13 @@ export async function GET(req: NextRequest) {
     const end = searchParams.get("end");
     const search = searchParams.get("search");
     const myInvoices = searchParams.get("my_invoices") === "true";
+
+    if (start && (!DATE_REGEX.test(start) || isNaN(Date.parse(start)))) {
+      return NextResponse.json({ error: "Formato de parámetro 'start' inválido. Debe ser YYYY-MM-DD." }, { status: 400 });
+    }
+    if (end && (!DATE_REGEX.test(end) || isNaN(Date.parse(end)))) {
+      return NextResponse.json({ error: "Formato de parámetro 'end' inválido. Debe ser YYYY-MM-DD." }, { status: 400 });
+    }
 
     const isRrhh = (session.user as any).role === "rrhh";
     let sql: string;
@@ -81,6 +92,9 @@ export async function GET(req: NextRequest) {
         params = [start, end];
       }
     } else {
+      if (!start || !end) {
+        return NextResponse.json({ error: "Faltan parámetros start y end" }, { status: 400 });
+      }
       sql = `
         SELECT 
           i.id, 
@@ -109,7 +123,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(res.rows);
   } catch (error: any) {
     console.error("Error al consultar facturas:", error);
-    return NextResponse.json({ error: error.message || "Error interno" }, { status: 500 });
+    return NextResponse.json({ error: "Error al procesar la consulta de facturas" }, { status: 500 });
   }
 }
 
@@ -141,9 +155,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Datos incompletos" }, { status: 400 });
     }
 
-    if (typeof amount !== 'number' || isNaN(amount) || amount <= 0 || amount > 100000) {
-      return NextResponse.json({ error: "Monto inválido (El monto excede el tope permitido)" }, { status: 400 });
+    if (typeof amount !== 'number' || isNaN(amount) || amount <= 0) {
+      return NextResponse.json({ error: "Monto inválido. El monto debe ser un número mayor a cero." }, { status: 400 });
     }
+
+    const currentBcvRate = await getBcvRate();
+    const maxAllowedBs = Number((currentBcvRate * 20).toFixed(2));
+    if (amount > maxAllowedBs) {
+      return NextResponse.json({ error: `El monto excede el tope permitido de $20 USD (Bs. ${maxAllowedBs.toFixed(2)})` }, { status: 400 });
+    }
+
+    amount = Math.round((amount + Number.EPSILON) * 100) / 100;
 
     const parsedDate = new Date(date);
     const now = new Date();
@@ -152,6 +174,13 @@ export async function POST(req: NextRequest) {
     if (parsedDate > now || parsedDate < sixMonthsAgo) {
       return NextResponse.json({ error: "Fecha inválida: La fecha no puede ser futura o más antigua a 6 meses." }, { status: 400 });
     }
+
+    // Validación estricta de tipo de vehículo (N-09)
+    if (!vehicle_type || !["carro", "moto"].includes(vehicle_type.toLowerCase().trim())) {
+      return NextResponse.json({ error: "Tipo de vehículo inválido. Debe ser 'carro' o 'moto'." }, { status: 400 });
+    }
+    const cleanVehicleType = vehicle_type.toLowerCase().trim();
+    const vehicleTypeId = cleanVehicleType === "moto" ? 2 : 1;
 
     const userUuid = (session.user as any).id;
     const userEmail = session.user.email;
@@ -187,16 +216,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 3. Mapear tipo de vehículo
-    let vehicleTypeId = 1; // Carro por defecto
-    if (vehicle_type) {
-      const vt = vehicle_type.toLowerCase().trim();
-      if (vt === "moto") {
-        vehicleTypeId = 2;
-      }
-    }
-
-    // 4. Verificar si ya existe una factura en la misma fecha para este usuario
+    // 3. Verificar si ya existe una factura en la misma fecha para este usuario
     const checkSql = `SELECT id FROM invoice WHERE user_id = $1 AND DATE(issued_at) = $2 LIMIT 1`;
     const checkRes = await query(checkSql, [userUuid, date]);
     
@@ -204,7 +224,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Ya tienes una factura registrada con esta fecha. Solo se permite una por día." }, { status: 400 });
     }
 
-    // 5. Control de unicidad estricto: mismo usuario y mismo número de factura
+    // 4. Control de unicidad estricto: mismo usuario y mismo número de factura
     const checkInvoiceSql = `SELECT id FROM invoice WHERE user_id = $1 AND invoice_number = $2 LIMIT 1`;
     const checkInvoiceRes = await query(checkInvoiceSql, [userUuid, invoice_number]);
     
@@ -212,26 +232,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Ya tienes registrada una factura con este mismo número." }, { status: 400 });
     }
 
-    // 6. Obtener tasa actual y Guardar
-    let currentBcvRate = 587.40;
-    try {
-      const bcvRes = await fetch("http://172.16.202.58:8000/api/rates/", { cache: "no-store" });
-      if (bcvRes.ok) {
-        const bcvData = await bcvRes.json();
-        let usdData = null;
-        if (Array.isArray(bcvData)) {
-          usdData = bcvData.find((item: any) => item.currency === "USD" || (typeof item.currency === "object" && item.currency?.code === "USD"));
-        } else if (bcvData && bcvData.value && Array.isArray(bcvData.value)) {
-          usdData = bcvData.value.find((item: any) => item.currency === "USD" || (typeof item.currency === "object" && item.currency?.code === "USD"));
-        }
-        if (usdData && usdData.bd_venta_ask) {
-          currentBcvRate = parseFloat(usdData.bd_venta_ask);
-        }
-      }
-    } catch (e) {
-      console.warn("No se pudo obtener la tasa BCV", e);
-    }
-
+    // 5. Guardar factura
     const invoiceId = randomUUID();
     const sql = `
       INSERT INTO invoice (
@@ -268,12 +269,12 @@ export async function POST(req: NextRequest) {
       location,
       amount,
       image_url,
-      vehicle_type,
+      vehicle_type: cleanVehicleType,
       created_at: new Date().toISOString()
     });
   } catch (error: any) {
     console.error("Error al registrar factura:", error);
-    return NextResponse.json({ error: error.message || "Error interno" }, { status: 500 });
+    return NextResponse.json({ error: "Error al registrar la factura" }, { status: 500 });
   }
 }
 
@@ -303,14 +304,20 @@ export async function PUT(req: NextRequest) {
     invoice_number = sanitizeInput(invoice_number);
     vehicle_type = sanitizeInput(vehicle_type);
 
-    if (!id) {
-      return NextResponse.json({ error: "Falta ID de factura" }, { status: 400 });
+    if (!id || !UUID_REGEX.test(id)) {
+      return NextResponse.json({ error: "Identificador de factura inválido" }, { status: 400 });
     }
 
     if (amount !== undefined) {
-      if (typeof amount !== 'number' || isNaN(amount) || amount <= 0 || amount > 100000) {
-        return NextResponse.json({ error: "Monto inválido (El monto excede el tope permitido)" }, { status: 400 });
+      if (typeof amount !== 'number' || isNaN(amount) || amount <= 0) {
+        return NextResponse.json({ error: "Monto inválido. El monto debe ser un número mayor a cero." }, { status: 400 });
       }
+      const currentBcvRate = await getBcvRate();
+      const maxAllowedBs = Number((currentBcvRate * 20).toFixed(2));
+      if (amount > maxAllowedBs) {
+        return NextResponse.json({ error: `El monto excede el tope permitido de $20 USD (Bs. ${maxAllowedBs.toFixed(2)})` }, { status: 400 });
+      }
+      amount = Math.round((amount + Number.EPSILON) * 100) / 100;
     }
 
     if (date !== undefined) {
@@ -419,10 +426,11 @@ export async function PUT(req: NextRequest) {
     addField("image_url", image_url);
     
     if (vehicle_type !== undefined) {
-      let vehicleTypeId = 1;
-      if (vehicle_type.toLowerCase().trim() === "moto") {
-        vehicleTypeId = 2;
+      const cleanVehicleType = vehicle_type.toLowerCase().trim();
+      if (!["carro", "moto"].includes(cleanVehicleType)) {
+        return NextResponse.json({ error: "Tipo de vehículo inválido. Debe ser 'carro' o 'moto'." }, { status: 400 });
       }
+      const vehicleTypeId = cleanVehicleType === "moto" ? 2 : 1;
       addField("vehicle_type_id", vehicleTypeId);
     }
     
@@ -440,6 +448,24 @@ export async function PUT(req: NextRequest) {
     `;
 
     await query(sql, values);
+
+    if (isRrhh) {
+      await logAuditAction({
+        userEmail: session.user.email!,
+        action: "EDIT",
+        targetInvoiceId: id,
+        targetUserEmail: ownerEmail,
+        oldValues: owner,
+        newValues: {
+          date: targetDate,
+          invoice_number: targetInvoice,
+          amount,
+          parking_name,
+          location,
+          vehicle_type
+        }
+      });
+    }
     
     const finalRes = await query(`
       SELECT 
@@ -465,7 +491,7 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json(finalRes.rows[0] || {});
   } catch (error: any) {
     console.error("Error al actualizar factura:", error);
-    return NextResponse.json({ error: error.message || "Error interno" }, { status: 500 });
+    return NextResponse.json({ error: "Error al actualizar la factura" }, { status: 500 });
   }
 }
 
@@ -480,8 +506,8 @@ export async function DELETE(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
 
-    if (!id) {
-      return NextResponse.json({ error: "Falta ID de factura" }, { status: 400 });
+    if (!id || !UUID_REGEX.test(id)) {
+      return NextResponse.json({ error: "Identificador de factura inválido" }, { status: 400 });
     }
 
     const isRrhh = (session.user as any).role === "rrhh";
@@ -490,16 +516,32 @@ export async function DELETE(req: NextRequest) {
     }
 
     // Verificar si existe y si ya fue exportada
-    const checkRes = await query(`SELECT report_sequence FROM invoice WHERE id = $1`, [id]);
+    const checkRes = await query(`
+      SELECT i.*, u.email as user_email 
+      FROM invoice i 
+      JOIN "user" u ON i.user_id = u.uuid 
+      WHERE i.id = $1
+    `, [id]);
+    
     if (checkRes.rows.length === 0) {
       return NextResponse.json({ error: "Factura no encontrada" }, { status: 404 });
     }
 
+    const deletedInvoice = checkRes.rows[0];
+
     await query(`DELETE FROM invoice WHERE id = $1`, [id]);
+
+    await logAuditAction({
+      userEmail: session.user.email!,
+      action: "DELETE",
+      targetInvoiceId: id,
+      targetUserEmail: deletedInvoice.user_email,
+      oldValues: deletedInvoice
+    });
     
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error("Error al eliminar factura:", error);
-    return NextResponse.json({ error: error.message || "Error interno" }, { status: 500 });
+    return NextResponse.json({ error: "Error al eliminar la factura" }, { status: 500 });
   }
 }

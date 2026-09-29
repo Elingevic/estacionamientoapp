@@ -6,6 +6,8 @@ import Tesseract from "tesseract.js";
 import { Camera, FileText, Loader2, CheckCircle2, UploadCloud, LogOut, Calendar, Users, Building2, Receipt, Car, Bike, BarChart3, Printer, ShieldAlert, Pencil, Lock, Info } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { getCurrentPayrollCycle } from "../lib/dates";
+import { formatBs, formatUsd } from "../lib/formatters";
 
 export default function Home() {
   const { data: session, status } = useSession();
@@ -35,20 +37,8 @@ export default function Home() {
   const [editingFactura, setEditingFactura] = useState<any | null>(null);
   const [editLoading, setEditLoading] = useState(false);
 
-  const [startDate, setStartDate] = useState(() => {
-    const d = new Date();
-    const day = d.getDay();
-    const shiftedDay = (day + 1) % 7; 
-    d.setDate(d.getDate() - shiftedDay - 7);
-    return d.toISOString().split("T")[0];
-  });
-  const [endDate, setEndDate] = useState(() => {
-    const d = new Date();
-    const day = d.getDay();
-    const shiftedDay = (day + 1) % 7;
-    d.setDate(d.getDate() - shiftedDay - 1);
-    return d.toISOString().split("T")[0];
-  });
+  const [startDate, setStartDate] = useState(() => getCurrentPayrollCycle().start);
+  const [endDate, setEndDate] = useState(() => getCurrentPayrollCycle().end);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -335,23 +325,14 @@ export default function Home() {
             <Link href="/dashboard?personal=true" className="flex items-center gap-2 px-4 py-2.5 bg-white/10 text-white rounded-xl hover:bg-white/20 transition font-bold text-sm">
               <BarChart3 className="w-5 h-5" /> Estadísticas
             </Link>
-            <button onClick={async () => {
-              const keycloakIssuer = process.env.NEXT_PUBLIC_KEYCLOAK_ISSUER;
-              const clientId = process.env.NEXT_PUBLIC_KEYCLOAK_CLIENT_ID;
-              if (!keycloakIssuer || !clientId) {
-                console.error("Faltan variables de entorno NEXT_PUBLIC_KEYCLOAK_ISSUER o NEXT_PUBLIC_KEYCLOAK_CLIENT_ID");
-                return;
-              }
-              const idToken = (session as any)?.id_token;
-              
-              const postLogoutRedirectUri = `${window.location.origin}/`;
-              let logoutUrl = `${keycloakIssuer}/protocol/openid-connect/logout?client_id=${encodeURIComponent(clientId)}&post_logout_redirect_uri=${encodeURIComponent(postLogoutRedirectUri)}`;
-              if (idToken) {
-                logoutUrl += `&id_token_hint=${encodeURIComponent(idToken)}`;
-              }
-              
-              await signOut({ callbackUrl: logoutUrl });
-            }} className="p-2.5 bg-black/20 text-white rounded-xl hover:bg-black/30 transition">
+            <button 
+              onClick={() => {
+                window.location.href = "/api/auth/federated-logout";
+              }} 
+              aria-label="Cerrar sesión"
+              title="Cerrar sesión"
+              className="p-2.5 bg-black/20 text-white rounded-xl hover:bg-black/30 transition"
+            >
               <LogOut className="w-5 h-5" />
             </button>
           </div>
@@ -374,7 +355,7 @@ export default function Home() {
               </div>
               <div className="text-center mt-4">
                 <p className="text-sm font-medium text-slate-500">{loading ? ocrProgress || "Procesando..." : "Selecciona una opción para registrar tu factura"}</p>
-                {bcvRate && <p className="text-xs font-bold text-brand-blue mt-2">Tasa BCV del día: Bs. {bcvRate.toFixed(2)}</p>}
+                {bcvRate && <p className="text-xs font-bold text-brand-blue mt-2">Tasa BCV del día: {formatBs(bcvRate)}</p>}
               </div>
               <input type="file" accept="image/*" capture="environment" className="hidden" ref={fileInputRef} onChange={handleCapture} disabled={loading} />
             </div>
@@ -403,7 +384,7 @@ export default function Home() {
               </div>
               <div className="space-y-2">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Nro. de Factura</label>
-                <input type="text" inputMode="numeric" pattern="[0-9]*" maxLength={20} required value={formData.nro_factura} onChange={(e) => setFormData({ ...formData, nro_factura: e.target.value.replace(/\D/g, "") })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20 transition-all font-mono text-lg text-slate-800" />
+                <input type="text" maxLength={50} required value={formData.nro_factura} onChange={(e) => setFormData({ ...formData, nro_factura: e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, "") })} placeholder="Ej. 0001 o A-1234" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20 transition-all font-mono text-lg text-slate-800" />
               </div>
               <div className="space-y-2">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tipo de Vehículo</label>
@@ -420,10 +401,10 @@ export default function Home() {
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Monto</label>
                 <div className="relative">
                   <span className="absolute left-4 top-3.5 font-bold text-slate-400">Bs.</span>
-                  <input type="number" step="0.01" min="0.01" max={bcvRate ? bcvRate * 20 : 15000} required value={formData.monto} onChange={(e) => { const val = e.target.value; const maxMonto = bcvRate ? bcvRate * 20 : 15000; if (val.length <= 10 && (val === "" || parseFloat(val) <= maxMonto)) setFormData({ ...formData, monto: val }) }} onInvalid={(e) => { const maxMonto = bcvRate ? bcvRate * 20 : 15000; (e.target as HTMLInputElement).setCustomValidity(`El monto no puede superar los $20 USD (Bs. ${maxMonto.toFixed(2)})`); }} onInput={(e) => (e.target as HTMLInputElement).setCustomValidity("")} className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-3.5 outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20 transition-all font-semibold text-lg text-slate-800" />
+                  <input type="number" step="0.01" min="0.01" max={bcvRate ? Number((bcvRate * 20).toFixed(2)) : 15000} required value={formData.monto} onChange={(e) => { const val = e.target.value; const maxMonto = bcvRate ? Number((bcvRate * 20).toFixed(2)) : 15000; if (val.length <= 10 && (val === "" || parseFloat(val) <= maxMonto)) setFormData({ ...formData, monto: val }) }} onInvalid={(e) => { const maxMonto = bcvRate ? Number((bcvRate * 20).toFixed(2)) : 15000; (e.target as HTMLInputElement).setCustomValidity(`El monto no puede superar los $20 USD (Bs. ${maxMonto.toFixed(2)})`); }} onInput={(e) => (e.target as HTMLInputElement).setCustomValidity("")} className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-3.5 outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20 transition-all font-semibold text-lg text-slate-800" />
                 </div>
                 {bcvRate && formData.monto && (
-                  <p className="text-xs text-emerald-600 font-bold mt-1 text-right">≈ ${(parseFloat(formData.monto) / bcvRate).toFixed(2)} USD</p>
+                  <p className="text-xs text-emerald-600 font-bold mt-1 text-right">≈ {formatUsd(parseFloat(formData.monto) / bcvRate)} USD</p>
                 )}
               </div>
               <div className="pt-4 flex gap-3">
@@ -487,8 +468,8 @@ export default function Home() {
               <div className="grid grid-cols-2 gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-100">
                 <div className="space-y-1 border-r border-slate-200 pr-2">
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Consumido</p>
-                  <p className="text-base font-extrabold text-brand-blue">Bs. {myTotalMonto.toFixed(2)}</p>
-                  <p className="text-xs font-bold text-emerald-600">≈ ${myTotalMontoUsd.toFixed(2)} USD</p>
+                  <p className="text-base font-extrabold text-brand-blue">{formatBs(myTotalMonto)}</p>
+                  <p className="text-xs font-bold text-emerald-600">≈ {formatUsd(myTotalMontoUsd)} USD</p>
                 </div>
                 <div className="space-y-1 pl-2">
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Vehículos</p>
@@ -542,8 +523,8 @@ export default function Home() {
                       </div>
                       <div className="text-right flex flex-col justify-between items-end self-stretch">
                         <div className="flex flex-col items-end">
-                          <p className="text-sm font-bold text-slate-800">Bs. {Number(f.amount).toFixed(2)}</p>
-                          <p className="text-xs font-bold text-emerald-600">≈ ${itemUsd.toFixed(2)}</p>
+                          <p className="text-sm font-bold text-slate-800">{formatBs(f.amount)}</p>
+                          <p className="text-xs font-bold text-emerald-600">≈ {formatUsd(itemUsd)}</p>
                         </div>
                         {!f.report_sequence ? (
                           <button
@@ -600,7 +581,7 @@ export default function Home() {
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Nro. de Factura</label>
-                <input type="text" inputMode="numeric" pattern="[0-9]*" maxLength={20} required value={editingFactura.invoice_number || ""} onChange={(e) => setEditingFactura({ ...editingFactura, invoice_number: e.target.value.replace(/\D/g, "") })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-brand-blue text-sm font-mono" />
+                <input type="text" maxLength={50} required value={editingFactura.invoice_number || ""} onChange={(e) => setEditingFactura({ ...editingFactura, invoice_number: e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, "") })} placeholder="Ej. 0001 o A-1234" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-brand-blue text-sm font-mono" />
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tipo de Vehículo</label>
@@ -615,7 +596,7 @@ export default function Home() {
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Monto (Bs.)</label>
-                <input type="number" step="0.01" min="0.01" max={bcvRate ? bcvRate * 20 : 15000} required value={editingFactura.amount || ""} onChange={(e) => { const val = e.target.value; const maxMonto = bcvRate ? bcvRate * 20 : 15000; if (val.length <= 10 && (val === "" || parseFloat(val) <= maxMonto)) setEditingFactura({ ...editingFactura, amount: val }) }} onInvalid={(e) => { const maxMonto = bcvRate ? bcvRate * 20 : 15000; (e.target as HTMLInputElement).setCustomValidity(`El monto no puede superar los $20 USD (Bs. ${maxMonto.toFixed(2)})`); }} onInput={(e) => (e.target as HTMLInputElement).setCustomValidity("")} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-brand-blue text-sm font-semibold" />
+                <input type="number" step="0.01" min="0.01" max={bcvRate ? Number((bcvRate * 20).toFixed(2)) : 15000} required value={editingFactura.amount || ""} onChange={(e) => { const val = e.target.value; const maxMonto = bcvRate ? Number((bcvRate * 20).toFixed(2)) : 15000; if (val.length <= 10 && (val === "" || parseFloat(val) <= maxMonto)) setEditingFactura({ ...editingFactura, amount: val }) }} onInvalid={(e) => { const maxMonto = bcvRate ? Number((bcvRate * 20).toFixed(2)) : 15000; (e.target as HTMLInputElement).setCustomValidity(`El monto no puede superar los $20 USD (Bs. ${maxMonto.toFixed(2)})`); }} onInput={(e) => (e.target as HTMLInputElement).setCustomValidity("")} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-brand-blue text-sm font-semibold" />
               </div>
               
               <div className="pt-2 flex gap-2">

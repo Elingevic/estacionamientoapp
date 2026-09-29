@@ -4,9 +4,9 @@ import KeycloakProvider from "next-auth/providers/keycloak";
 export const authOptions: NextAuthOptions = {
   providers: [
     KeycloakProvider({
-      clientId: process.env.KEYCLOAK_ID!,
+      clientId: process.env.KEYCLOAK_ID || process.env.NEXT_PUBLIC_KEYCLOAK_CLIENT_ID || "sudeparking",
       clientSecret: process.env.KEYCLOAK_SECRET!,
-      issuer: process.env.KEYCLOAK_ISSUER!,
+      issuer: process.env.KEYCLOAK_ISSUER || process.env.NEXT_PUBLIC_KEYCLOAK_ISSUER || "http://172.16.205.33:8080/realms/sudeaseg",
       profile(profile, tokens) {
         console.log("=== KEYCLOAK PROFILE RECIBIDO ===", profile);
         
@@ -52,8 +52,11 @@ export const authOptions: NextAuthOptions = {
   ],
   callbacks: {
     async redirect({ url, baseUrl }) {
-      const issuer = process.env.KEYCLOAK_ISSUER;
+      const issuer = process.env.KEYCLOAK_ISSUER || process.env.NEXT_PUBLIC_KEYCLOAK_ISSUER;
       if (issuer && url.startsWith(issuer)) {
+        return url;
+      }
+      if (url.includes("/protocol/openid-connect/logout")) {
         return url;
       }
       if (url.startsWith("/")) return `${baseUrl}${url}`;
