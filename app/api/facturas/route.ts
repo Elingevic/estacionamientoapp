@@ -54,7 +54,8 @@ export async function GET(req: NextRequest) {
             i.image_url, 
             LOWER(v.description) as vehicle_type, 
             i.report_sequence, 
-            i.created_at 
+            i.created_at,
+            i.updated_at 
           FROM invoice i 
           JOIN "user" u ON i.user_id = u.uuid
           LEFT JOIN parking_lot p ON i.parking_lot_id = p.id
@@ -81,7 +82,8 @@ export async function GET(req: NextRequest) {
             i.image_url, 
             LOWER(v.description) as vehicle_type, 
             i.report_sequence, 
-            i.created_at 
+            i.created_at,
+            i.updated_at 
           FROM invoice i 
           JOIN "user" u ON i.user_id = u.uuid
           LEFT JOIN parking_lot p ON i.parking_lot_id = p.id
@@ -108,7 +110,8 @@ export async function GET(req: NextRequest) {
           i.image_url, 
           LOWER(v.description) as vehicle_type, 
           i.report_sequence, 
-          i.created_at 
+          i.created_at,
+          i.updated_at 
         FROM invoice i 
         JOIN "user" u ON i.user_id = u.uuid
         LEFT JOIN parking_lot p ON i.parking_lot_id = p.id
@@ -330,11 +333,19 @@ export async function PUT(req: NextRequest) {
       }
     }
 
-    // Mitigación de IDOR (Obligatorio)
     const ownerRes = await query(`
-      SELECT i.user_id, u.email as user_email, TO_CHAR(i.issued_at, 'YYYY-MM-DD') as date, i.invoice_number 
+      SELECT 
+        i.*, 
+        u.email as user_email, 
+        TO_CHAR(i.issued_at, 'YYYY-MM-DD') as date, 
+        i.invoice_number,
+        p.description as parking_name,
+        p.address as location,
+        LOWER(v.description) as vehicle_type
       FROM invoice i
       JOIN "user" u ON i.user_id = u.uuid
+      LEFT JOIN parking_lot p ON i.parking_lot_id = p.id
+      LEFT JOIN vehicle_type v ON i.vehicle_type_id = v.id
       WHERE i.id = $1 
       LIMIT 1
     `, [id]);
@@ -455,15 +466,22 @@ export async function PUT(req: NextRequest) {
         action: "EDIT",
         targetInvoiceId: id,
         targetUserEmail: ownerEmail,
-        oldValues: owner,
+        oldValues: {
+          date: owner.date,
+          invoice_number: owner.invoice_number,
+          amount: owner.amount,
+          parking_name: owner.parking_name,
+          location: owner.location,
+          vehicle_type: owner.vehicle_type,
+        },
         newValues: {
           date: targetDate,
           invoice_number: targetInvoice,
-          amount,
-          parking_name,
-          location,
-          vehicle_type
-        }
+          amount: amount !== undefined ? amount : owner.amount,
+          parking_name: parking_name !== undefined ? parking_name : owner.parking_name,
+          location: location !== undefined ? location : owner.location,
+          vehicle_type: vehicle_type !== undefined ? vehicle_type : owner.vehicle_type,
+        },
       });
     }
     
@@ -480,7 +498,8 @@ export async function PUT(req: NextRequest) {
         i.image_url, 
         LOWER(v.description) as vehicle_type, 
         i.report_sequence, 
-        i.created_at 
+        i.created_at,
+        i.updated_at 
       FROM invoice i
       JOIN "user" u ON i.user_id = u.uuid
       LEFT JOIN parking_lot p ON i.parking_lot_id = p.id

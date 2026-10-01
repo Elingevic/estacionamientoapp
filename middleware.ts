@@ -117,8 +117,16 @@ const accessDeniedHtml = `<!DOCTYPE html>
 
 export default withAuth(
   function middleware(req) {
-    // Proteger las rutas bajo /rrhh
-    if (req.nextUrl.pathname.startsWith("/rrhh")) {
+    const pathname = req.nextUrl.pathname;
+    const isProtected =
+      pathname.startsWith("/rrhh") ||
+      pathname.startsWith("/auditoria") ||
+      pathname.startsWith("/audit") ||
+      pathname.startsWith("/logs") ||
+      pathname.startsWith("/historial") ||
+      pathname.startsWith("/trazabilidad");
+
+    if (isProtected) {
       const isRrhh = req.nextauth.token?.role === "rrhh";
       if (!isRrhh) {
         // Respuesta HTTP 403 estricta con diseño institucional
@@ -126,6 +134,16 @@ export default withAuth(
           status: 403,
           headers: { "Content-Type": "text/html; charset=utf-8" },
         });
+      }
+
+      // Redirigir alias probados por QA hacia /auditoria
+      if (
+        pathname === "/audit" ||
+        pathname === "/logs" ||
+        pathname === "/historial" ||
+        pathname === "/trazabilidad"
+      ) {
+        return NextResponse.redirect(new URL("/auditoria", req.url));
       }
     }
   },
@@ -135,10 +153,17 @@ export default withAuth(
     },
     pages: {
       signIn: "/login",
-    }
+    },
   }
 );
 
 export const config = {
-  matcher: ["/rrhh/:path*"],
+  matcher: [
+    "/rrhh/:path*",
+    "/auditoria/:path*",
+    "/audit/:path*",
+    "/logs/:path*",
+    "/historial/:path*",
+    "/trazabilidad/:path*",
+  ],
 };

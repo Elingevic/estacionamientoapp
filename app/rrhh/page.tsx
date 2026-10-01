@@ -380,6 +380,13 @@ export default function RrhhDashboard() {
           >
             <LogOut className="w-5 h-5" /> Cerrar Sesión
           </button>
+          <Link
+            href="/auditoria"
+            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold border border-slate-200 shadow-sm transition-all"
+            title="Consultar registro de auditoría e historial de cambios"
+          >
+            <ShieldAlert className="w-5 h-5 text-brand-blue" /> Auditoría
+          </Link>
           <button onClick={triggerExportModal} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-lg shadow-emerald-600/30 transition-all">
             <Download className="w-5 h-5" /> Exportar Nómina
           </button>
@@ -677,7 +684,36 @@ export default function RrhhDashboard() {
               </div>
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Monto (Bs.)</label>
-                <input type="number" step="0.01" min="0.01" max={bcvRate ? bcvRate * 20 : 15000} required value={editingFactura.amount || ""} onChange={(e) => { const val = e.target.value; const maxMonto = bcvRate ? bcvRate * 20 : 15000; if (val.length <= 10 && (val === "" || parseFloat(val) <= maxMonto)) setEditingFactura({ ...editingFactura, amount: val }) }} onInvalid={(e) => { const maxMonto = bcvRate ? bcvRate * 20 : 15000; (e.target as HTMLInputElement).setCustomValidity(`El monto no puede superar los $20 USD (Bs. ${maxMonto.toFixed(2)})`); }} onInput={(e) => (e.target as HTMLInputElement).setCustomValidity("")} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-brand-blue text-sm font-semibold" />
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  max={bcvRate ? Number((bcvRate * 20).toFixed(2)) : 15000}
+                  required
+                  value={editingFactura.amount || ""}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    const maxMonto = bcvRate ? Number((bcvRate * 20).toFixed(2)) : 15000;
+                    if (val.length <= 10 && (val === "" || parseFloat(val) <= maxMonto)) {
+                      setEditingFactura({ ...editingFactura, amount: val });
+                    }
+                  }}
+                  onInvalid={(e) => {
+                    const target = e.target as HTMLInputElement;
+                    const maxMonto = bcvRate ? Number((bcvRate * 20).toFixed(2)) : 15000;
+                    if (target.validity.valueMissing) {
+                      target.setCustomValidity("El monto es requerido. Por favor ingrese el monto.");
+                    } else if (target.validity.rangeOverflow) {
+                      target.setCustomValidity(`El monto no puede superar los $20 USD (Bs. ${maxMonto.toFixed(2)})`);
+                    } else if (target.validity.rangeUnderflow) {
+                      target.setCustomValidity("El monto debe ser un número mayor a cero.");
+                    } else {
+                      target.setCustomValidity("Por favor ingrese un monto válido.");
+                    }
+                  }}
+                  onInput={(e) => (e.target as HTMLInputElement).setCustomValidity("")}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:border-brand-blue text-sm font-semibold"
+                />
               </div>
               
               <div className="pt-2 flex gap-2">

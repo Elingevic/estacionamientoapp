@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "../auth/[...nextauth]/route";
-import { query } from "../../../lib/db";
-import { ensureAuditTable } from "../../../lib/audit";
+import { getAuditLogs } from "../../../lib/audit";
 
 export async function GET(req: NextRequest) {
   try {
@@ -19,15 +18,32 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    await ensureAuditTable();
-    const res = await query(
-      `SELECT id, user_email, action, target_invoice_id, target_user_email, details, created_at 
-       FROM audit_log 
-       ORDER BY created_at DESC 
-       LIMIT 100`
-    );
+    const { searchParams } = new URL(req.url);
+    const start = searchParams.get("start");
+    const end = searchParams.get("end");
+    const invoice_id = searchParams.get("invoice_id") || searchParams.get("target_invoice_id");
+    const user_id = searchParams.get("user_id") || searchParams.get("target_user_email");
+    const limit = searchParams.get("limit") ? parseInt(searchParams.get("limit")!, 10) : 50;
+    const page = searchParams.get("page") ? parseInt(searchParams.get("page")!, 10) : 1;
+    const offset = searchParams.get("offset") ? parseInt(searchParams.get("offset")!, 10) : undefined;
 
-    return NextResponse.json({ success: true, logs: res.rows });
+    const result = await getAuditLogs({
+      start,
+      end,
+      invoice_id,
+      user_id,
+      limit,
+      page,
+      offset,
+    });
+
+    return NextResponse.json({
+      success: true,
+      logs: result.logs,
+      total: result.total,
+      limit: result.limit,
+      offset: result.offset,
+    });
   } catch (error: any) {
     console.error("Error al consultar auditoría:", error);
     return NextResponse.json(
@@ -35,4 +51,16 @@ export async function GET(req: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+export async function POST() {
+  return NextResponse.json({ error: "Método no permitido" }, { status: 405 });
+}
+
+export async function PUT() {
+  return NextResponse.json({ error: "Método no permitido" }, { status: 405 });
+}
+
+export async function DELETE() {
+  return NextResponse.json({ error: "Método no permitido" }, { status: 405 });
 }

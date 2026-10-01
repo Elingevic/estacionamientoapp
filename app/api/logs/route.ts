@@ -1,1 +1,1 @@
-export { GET } from "../auditoria/route";
+export { GET, POST, PUT, DELETE } from "../auditoria/route";
