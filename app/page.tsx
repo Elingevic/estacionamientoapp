@@ -3,10 +3,10 @@
 import { useState, useRef, useEffect } from "react";
 import { useSession, signIn, signOut } from "next-auth/react";
 import Tesseract from "tesseract.js";
-import { Camera, FileText, Loader2, CheckCircle2, UploadCloud, LogOut, Calendar, Users, Building2, Receipt, Car, Bike, BarChart3, Printer, ShieldAlert, Pencil, Lock, Info } from "lucide-react";
+import { Camera, FileText, Loader2, CheckCircle2, UploadCloud, LogOut, Calendar, Users, Building2, Receipt, Car, Bike, BarChart3, Printer, ShieldAlert, Pencil, Lock, Info, Trash2, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { getCurrentPayrollCycle } from "../lib/dates";
+import { getCurrentPayrollCycle, getPreviousPayrollCycle } from "../lib/dates";
 import { formatBs, formatUsd } from "../lib/formatters";
 
 export default function Home() {
@@ -22,6 +22,7 @@ export default function Home() {
   const [bcvRate, setBcvRate] = useState<number>(587.40);
   const [infoModal, setInfoModal] = useState<string | null>(null);
   const [errorModal, setErrorModal] = useState<string | null>(null);
+  const [isDateAutoDefaulted, setIsDateAutoDefaulted] = useState(false);
 
   const [formData, setFormData] = useState({
     fecha: new Date().toLocaleDateString("en-CA", { timeZone: "America/Caracas" }),
@@ -116,6 +117,20 @@ export default function Home() {
     }
   };
 
+  const handleDeleteInvoice = async (id: string) => {
+    if (!confirm("¿Estás seguro de que deseas eliminar este ticket? Podrás volver a cargarlo si necesitas corregirlo.")) return;
+    try {
+      const res = await fetch(`/api/facturas?id=${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || "Error al eliminar");
+      }
+      fetchMyFacturas(true);
+    } catch (e: any) {
+      setErrorModal(e.message || "Error al eliminar factura");
+    }
+  };
+
   const handleCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const selectedFile = e.target.files[0];
@@ -183,6 +198,7 @@ export default function Home() {
 
       // Buscar Fecha
       let fecha = new Date().toLocaleDateString("en-CA", { timeZone: "America/Caracas" });
+      let autoDefaulted = true;
       const dateMatch = textClean.match(/FECHA[:\s]*(\d{2}[-/]\d{2}[-/]\d{4})/i) || textClean.match(/(\d{2}[-/]\d{2}[-/]\d{4})/);
       if (dateMatch) {
          const dStr = dateMatch[1].replace(/\//g, '-');
@@ -190,8 +206,10 @@ export default function Home() {
          if (parts.length === 3) {
             // Asumimos formato DD-MM-YYYY
             fecha = `${parts[2]}-${parts[1]}-${parts[0]}`;
+            autoDefaulted = false;
          }
       }
+      setIsDateAutoDefaulted(autoDefaulted);
 
       let tipo_vehiculo = "carro";
       const rawText = (result.data.text || "").toUpperCase();
@@ -370,6 +388,15 @@ export default function Home() {
                   <div className="absolute top-3 right-3 bg-brand-blue/90 text-white px-3 py-1.5 rounded-lg text-xs font-semibold backdrop-blur-sm shadow-md">Auditoría RRHH</div>
                 </div>
               )}
+              {isDateAutoDefaulted && (
+                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3 text-amber-800">
+                  <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                  <div className="text-xs space-y-1">
+                    <p className="font-bold text-amber-900">⚠️ Por favor verifica la fecha del ticket</p>
+                    <p>No se pudo detectar la fecha automáticamente con total certeza y se colocó la de hoy. Si tu ticket corresponde a un día anterior, selecciónala en el campo siguiente.</p>
+                  </div>
+                </div>
+              )}
               <div className="space-y-2">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Fecha de la Factura</label>
                 <input type="date" required value={formData.fecha} onChange={(e) => setFormData({ ...formData, fecha: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20 transition-all text-lg text-slate-800" />
@@ -481,6 +508,44 @@ export default function Home() {
               </div>
             </div>
             
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                type="button"
+                onClick={() => {
+                  const cycle = getCurrentPayrollCycle();
+                  setStartDate(cycle.start);
+                  setEndDate(cycle.end);
+                }}
+                className="px-2.5 py-1 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition"
+              >
+                Esta Semana
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const prev = getPreviousPayrollCycle();
+                  setStartDate(prev.start);
+                  setEndDate(prev.end);
+                }}
+                className="px-2.5 py-1 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition"
+              >
+                Semana Anterior
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const now = new Date();
+                  const startYear = `${now.getFullYear()}-01-01`;
+                  const endYear = `${now.getFullYear()}-12-31`;
+                  setStartDate(startYear);
+                  setEndDate(endYear);
+                }}
+                className="px-2.5 py-1 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition"
+              >
+                Todas mis Cargas
+              </button>
+            </div>
+            
             <div className="flex gap-3">
               <div className="w-1/2">
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Desde</label>
@@ -556,12 +621,20 @@ export default function Home() {
                           <p className="text-xs font-bold text-emerald-600">≈ {formatUsd(itemUsd)}</p>
                         </div>
                         {!f.report_sequence ? (
-                          <button
-                            onClick={() => setEditingFactura(f)}
-                            className="mt-2 text-xs font-bold text-slate-400 hover:text-brand-blue flex items-center gap-1 transition-colors bg-white hover:bg-blue-50 px-2 py-1 rounded-md border border-slate-200"
-                          >
-                            <Pencil className="w-3 h-3" /> Editar
-                          </button>
+                          <div className="flex items-center gap-1.5 mt-2">
+                            <button
+                              onClick={() => setEditingFactura(f)}
+                              className="text-xs font-bold text-slate-400 hover:text-brand-blue flex items-center gap-1 transition-colors bg-white hover:bg-blue-50 px-2 py-1 rounded-md border border-slate-200"
+                            >
+                              <Pencil className="w-3 h-3" /> Editar
+                            </button>
+                            <button
+                              onClick={() => handleDeleteInvoice(f.id)}
+                              className="text-xs font-bold text-brand-red/80 hover:text-brand-red hover:bg-red-50 flex items-center gap-1 transition-colors bg-white px-2 py-1 rounded-md border border-slate-200"
+                            >
+                              <Trash2 className="w-3 h-3" /> Eliminar
+                            </button>
+                          </div>
                         ) : (
                           <button 
                             title="Esta factura ya fue exportada en un reporte y no puede ser modificada" 

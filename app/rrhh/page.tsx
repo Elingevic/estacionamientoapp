@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
-import { Download, Calendar, Search, ExternalLink, Activity, DollarSign, Receipt, AlertCircle, X, ShieldAlert, Loader2, Building2, FileText, LogOut, BarChart3, Car, Bike, Pencil, Lock, Info, Trash2 } from "lucide-react";
+import { Download, Calendar, Search, ExternalLink, Activity, DollarSign, Receipt, AlertCircle, X, ShieldAlert, Loader2, Building2, FileText, LogOut, BarChart3, Car, Bike, Pencil, Lock, Info, Trash2, Filter, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import * as XLSX from "xlsx-js-style";
 import { saveAs } from "file-saver";
 
-import { getCurrentPayrollCycle, getPayrollWeekString } from "../../lib/dates";
+import { getCurrentPayrollCycle, getPreviousPayrollCycle, getPayrollWeekString } from "../../lib/dates";
 import { round2 } from "../../lib/formatters";
 
 export default function RrhhDashboard() {
@@ -35,6 +35,15 @@ export default function RrhhDashboard() {
 
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [filterVehicle, setFilterVehicle] = useState<string>("all");
+  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [showAllEmployeeHistory, setShowAllEmployeeHistory] = useState<boolean>(false);
+
+  // Estados para el Rastreador de Facturas
+  const [trackerNumber, setTrackerNumber] = useState<string>("");
+  const [trackerResult, setTrackerResult] = useState<any | null>(null);
+  const [trackerLoading, setTrackerLoading] = useState<boolean>(false);
+  const [trackerModalOpen, setTrackerModalOpen] = useState<boolean>(false);
 
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const [exportType, setExportType] = useState<"general" | "individual">("general");
@@ -167,18 +176,52 @@ export default function RrhhDashboard() {
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
+  const handleTrackInvoice = async (invoiceNumToTrack?: string) => {
+    const num = (invoiceNumToTrack || trackerNumber).trim();
+    if (!num) return;
+    setTrackerLoading(true);
+    setTrackerModalOpen(true);
+    setTrackerResult(null);
+    try {
+      const res = await fetch(`/api/facturas?invoice_number=${encodeURIComponent(num)}&all=true`);
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      setTrackerResult({
+        searchedNumber: num,
+        invoices: data || []
+      });
+    } catch (e: any) {
+      setTrackerResult({
+        searchedNumber: num,
+        error: e.message || "Error al buscar factura",
+        invoices: []
+      });
+    } finally {
+      setTrackerLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (status === "authenticated") {
       fetchFacturas();
     }
-  }, [status, startDate, endDate, debouncedSearch]);
+  }, [status, startDate, endDate, debouncedSearch, filterVehicle, filterStatus, showAllEmployeeHistory, selectedEmployee]);
 
   const fetchFacturas = async (silent = false) => {
     if (!silent) setLoading(true);
     try {
       let url = `/api/facturas?start=${startDate}&end=${endDate}`;
-      if (debouncedSearch && debouncedSearch.length > 2) {
-        url = `/api/facturas?search=${encodeURIComponent(debouncedSearch)}`;
+      if (showAllEmployeeHistory && selectedEmployee) {
+        url = `/api/facturas?email=${encodeURIComponent(selectedEmployee)}&all=true`;
+      }
+      if (debouncedSearch && debouncedSearch.trim().length > 0) {
+        url += `&search=${encodeURIComponent(debouncedSearch.trim())}`;
+      }
+      if (filterVehicle !== "all") {
+        url += `&vehicle_type=${filterVehicle}`;
+      }
+      if (filterStatus !== "all") {
+        url += `&status=${filterStatus}`;
       }
       const res = await fetch(url);
       if (!res.ok) {
@@ -196,10 +239,17 @@ export default function RrhhDashboard() {
     }
   };
 
-  const filteredFacturas = facturas.filter(f => 
-    f.user_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    f.invoice_number?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredFacturas = facturas.filter(f => {
+    const matchesSearch = !searchTerm || 
+      f.user_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      f.invoice_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      f.parking_name?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesVehicle = filterVehicle === "all" || f.vehicle_type === filterVehicle;
+    const matchesStatus = filterStatus === "all" || 
+      (filterStatus === "pending" && !f.report_sequence) ||
+      (filterStatus === "processed" && Boolean(f.report_sequence));
+    return matchesSearch && matchesVehicle && matchesStatus;
+  });
 
   const facturasPorEmpleado = filteredFacturas.reduce((acc, f) => {
     if (!acc[f.user_id]) acc[f.user_id] = [];
@@ -396,24 +446,143 @@ export default function RrhhDashboard() {
       <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-4 gap-8">
         
         {/* FILTROS Y ESTADÍSTICAS LADO IZQUIERDO */}
-        <div className="lg:col-span-1 space-y-8">
+        <div className="lg:col-span-1 space-y-6">
           
-          <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-lg">
-            <h3 className="text-brand-blue font-bold flex items-center gap-2 text-lg mb-6"><Calendar className="w-5 h-5"/> Periodo a Pagar</h3>
-            <div className="space-y-5">
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Semana</label>
-                <div className="relative">
-                  <input type="week" value={selectedWeek} onChange={handleWeekChange} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20 transition-all font-medium text-transparent relative z-10 cursor-pointer" />
-                  <div className="absolute inset-0 flex items-center justify-between px-4 pointer-events-none">
-                    <span className="font-medium text-slate-700">Semana {selectedWeek.split('-W')[1]}, {selectedWeek.split('-W')[0]}</span>
-                    <Calendar className="w-5 h-5 text-slate-400" />
-                  </div>
+          {/* PERIODO A PAGAR MEJORADO */}
+          <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-lg space-y-4">
+            <h3 className="text-brand-blue font-bold flex items-center gap-2 text-lg">
+              <Calendar className="w-5 h-5 text-brand-blue"/> Periodo a Pagar
+            </h3>
+            
+            {/* Visualizador de semana activo */}
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Ciclo Nómina</span>
+                <span className="px-2 py-0.5 text-[10px] font-bold bg-blue-100 text-brand-blue rounded-md">
+                  Sáb a Vie
+                </span>
+              </div>
+              <p className="text-sm font-extrabold text-slate-800">
+                Semana {selectedWeek.split('-W')[1] || "—"}, {selectedWeek.split('-W')[0] || ""}
+              </p>
+              <p className="text-xs text-brand-blue font-semibold">
+                {new Date(startDate + "T12:00:00").toLocaleDateString("es-ES")} — {new Date(endDate + "T12:00:00").toLocaleDateString("es-ES")}
+              </p>
+            </div>
+
+            {/* Botones de Preajustes Rápidos */}
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const cycle = getCurrentPayrollCycle();
+                  setStartDate(cycle.start);
+                  setEndDate(cycle.end);
+                  setSelectedWeek(getPayrollWeekString());
+                  setShowAllEmployeeHistory(false);
+                }}
+                className="px-2.5 py-1.5 text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition text-center"
+              >
+                Esta Semana
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const prev = getPreviousPayrollCycle();
+                  setStartDate(prev.start);
+                  setEndDate(prev.end);
+                  setSelectedWeek(getPayrollWeekString(new Date(prev.start + "T12:00:00")));
+                  setShowAllEmployeeHistory(false);
+                }}
+                className="px-2.5 py-1.5 text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition text-center"
+              >
+                Semana Anterior
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const now = new Date();
+                  const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+                  const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+                  setStartDate(firstDay);
+                  setEndDate(lastDay);
+                  setShowAllEmployeeHistory(false);
+                }}
+                className="px-2.5 py-1.5 text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition text-center"
+              >
+                Mes Actual
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const now = new Date();
+                  const startYear = `${now.getFullYear()}-01-01`;
+                  const endYear = `${now.getFullYear()}-12-31`;
+                  setStartDate(startYear);
+                  setEndDate(endYear);
+                  setShowAllEmployeeHistory(false);
+                }}
+                className="px-2.5 py-1.5 text-xs font-bold bg-blue-50 hover:bg-blue-100 text-brand-blue rounded-xl transition text-center"
+              >
+                Todo el Año
+              </button>
+            </div>
+
+            {/* Selector manual de fechas Desde / Hasta */}
+            <div className="space-y-2 pt-2 border-t border-slate-100">
+              <div className="flex gap-2">
+                <div className="w-1/2">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Desde</label>
+                  <input 
+                    type="date" 
+                    value={startDate} 
+                    onChange={e => {
+                      setStartDate(e.target.value);
+                      setShowAllEmployeeHistory(false);
+                    }} 
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-xs outline-none focus:border-brand-blue font-semibold text-slate-700 shadow-sm" 
+                  />
+                </div>
+                <div className="w-1/2">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Hasta</label>
+                  <input 
+                    type="date" 
+                    value={endDate} 
+                    onChange={e => {
+                      setEndDate(e.target.value);
+                      setShowAllEmployeeHistory(false);
+                    }} 
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-xs outline-none focus:border-brand-blue font-semibold text-slate-700 shadow-sm" 
+                  />
                 </div>
               </div>
-              <div className="text-xs text-slate-400 font-medium">
-                Cargando facturas del <strong className="text-slate-600">{new Date(startDate + "T12:00:00").toLocaleDateString("es-ES")}</strong> al <strong className="text-slate-600">{new Date(endDate + "T12:00:00").toLocaleDateString("es-ES")}</strong>
-              </div>
+            </div>
+          </div>
+
+          {/* RASTREADOR DE TICKETS RÁPIDO */}
+          <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-lg space-y-3.5">
+            <h3 className="text-brand-blue font-bold flex items-center gap-2 text-base">
+              <Search className="w-5 h-5 text-brand-red" /> Rastrear Ticket
+            </h3>
+            <p className="text-xs text-slate-500 font-medium leading-relaxed">
+              ¿Un empleado reporta que cargó un ticket y no aparece? Búscalo aquí directamente por su número en toda la base de datos.
+            </p>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="Nro. Factura (ej. 33815)"
+                value={trackerNumber}
+                onChange={e => setTrackerNumber(e.target.value.toUpperCase())}
+                onKeyDown={e => { if (e.key === "Enter") handleTrackInvoice(); }}
+                className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs outline-none focus:border-brand-blue font-mono font-bold text-slate-800"
+              />
+              <button
+                onClick={() => handleTrackInvoice()}
+                disabled={trackerLoading || !trackerNumber.trim()}
+                className="px-3.5 py-2 bg-brand-blue hover:bg-brand-darkblue text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow-sm transition disabled:opacity-50"
+              >
+                {trackerLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Buscar"}
+              </button>
             </div>
           </div>
 
@@ -457,26 +626,94 @@ export default function RrhhDashboard() {
         {/* TABLA CENTRAL */}
         <div className="lg:col-span-3 bg-white border border-slate-100 rounded-3xl shadow-xl flex flex-col h-[800px] overflow-hidden">
           
-          <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-4 bg-slate-50/50">
-            {selectedEmployee ? (
-              <div className="flex items-center gap-3">
-                <button onClick={() => setSelectedEmployee(null)} className="p-2 rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-200 transition-colors font-bold text-sm px-4">
-                  Volver a Lista
-                </button>
-                <h2 className="text-xl font-bold text-brand-blue flex items-center gap-2"><Receipt className="w-5 h-5"/> Facturas de: <span className="text-slate-600">{selectedEmployee}</span></h2>
+          <div className="p-6 border-b border-slate-100 flex flex-col gap-4 bg-slate-50/50">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              {selectedEmployee ? (
+                <div className="flex items-center gap-3 flex-wrap">
+                  <button onClick={() => { setSelectedEmployee(null); setShowAllEmployeeHistory(false); }} className="p-2 rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-200 transition-colors font-bold text-sm px-4">
+                    Volver a Lista
+                  </button>
+                  <h2 className="text-xl font-bold text-brand-blue flex items-center gap-2">
+                    <Receipt className="w-5 h-5"/> Facturas de: <span className="text-slate-700">{selectedEmployee}</span>
+                  </h2>
+                  <button
+                    onClick={() => setShowAllEmployeeHistory(!showAllEmployeeHistory)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition ${showAllEmployeeHistory ? 'bg-brand-blue text-white border-brand-blue shadow-sm' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'}`}
+                  >
+                    {showAllEmployeeHistory ? "✓ Viendo todo su histórico" : "Ver todo su histórico"}
+                  </button>
+                </div>
+              ) : (
+                <h2 className="text-xl font-bold text-brand-blue flex items-center gap-2">
+                  <Receipt className="w-5 h-5"/> Registros de Empleados
+                </h2>
+              )}
+              <div className="relative w-full sm:w-80">
+                <Search className="w-5 h-5 absolute left-4 top-3.5 text-slate-400" />
+                <input 
+                  type="text" 
+                  placeholder="Buscar correo, factura o lugar..." 
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                  className="w-full bg-white border border-slate-200 rounded-xl pl-12 pr-4 py-3 outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20 transition-all font-medium text-slate-700 shadow-sm text-sm"
+                />
               </div>
-            ) : (
-              <h2 className="text-xl font-bold text-brand-blue flex items-center gap-2"><Receipt className="w-5 h-5"/> Registros de Empleados</h2>
-            )}
-            <div className="relative w-full sm:w-80">
-              <Search className="w-5 h-5 absolute left-4 top-3.5 text-slate-400" />
-              <input 
-                type="text" 
-                placeholder="Buscar por correo o factura..." 
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-                className="w-full bg-white border border-slate-200 rounded-xl pl-12 pr-4 py-3 outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20 transition-all font-medium text-slate-700 shadow-sm"
-              />
+            </div>
+
+            {/* Barra de Filtros secundarios */}
+            <div className="flex items-center gap-3 flex-wrap pt-2 border-t border-slate-200/60 text-xs">
+              <span className="font-bold text-slate-400 uppercase tracking-wider text-[10px] flex items-center gap-1">
+                <Filter className="w-3.5 h-3.5" /> Filtrar:
+              </span>
+              <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
+                <span className="text-[11px] text-slate-400 font-semibold px-2">Vehículo:</span>
+                <button
+                  type="button"
+                  onClick={() => setFilterVehicle("all")}
+                  className={`px-2.5 py-1 rounded-lg font-bold transition ${filterVehicle === "all" ? "bg-slate-800 text-white" : "text-slate-600 hover:bg-slate-100"}`}
+                >
+                  Todos
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilterVehicle("carro")}
+                  className={`px-2.5 py-1 rounded-lg font-bold transition ${filterVehicle === "carro" ? "bg-brand-blue text-white" : "text-slate-600 hover:bg-slate-100"}`}
+                >
+                  Carros
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilterVehicle("moto")}
+                  className={`px-2.5 py-1 rounded-lg font-bold transition ${filterVehicle === "moto" ? "bg-brand-red text-white" : "text-slate-600 hover:bg-slate-100"}`}
+                >
+                  Motos
+                </button>
+              </div>
+
+              <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
+                <span className="text-[11px] text-slate-400 font-semibold px-2">Estado:</span>
+                <button
+                  type="button"
+                  onClick={() => setFilterStatus("all")}
+                  className={`px-2.5 py-1 rounded-lg font-bold transition ${filterStatus === "all" ? "bg-slate-800 text-white" : "text-slate-600 hover:bg-slate-100"}`}
+                >
+                  Todos
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilterStatus("pending")}
+                  className={`px-2.5 py-1 rounded-lg font-bold transition ${filterStatus === "pending" ? "bg-amber-600 text-white" : "text-slate-600 hover:bg-slate-100"}`}
+                >
+                  Pendientes
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilterStatus("processed")}
+                  className={`px-2.5 py-1 rounded-lg font-bold transition ${filterStatus === "processed" ? "bg-emerald-600 text-white" : "text-slate-600 hover:bg-slate-100"}`}
+                >
+                  Procesadas
+                </button>
+              </div>
             </div>
           </div>
 
@@ -823,6 +1060,186 @@ export default function RrhhDashboard() {
             >
               Entendido
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL RASTREADOR DE FACTURAS */}
+      {trackerModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-md" onClick={() => setTrackerModalOpen(false)}>
+          <div className="relative max-w-2xl w-full bg-white rounded-3xl p-6 shadow-2xl border border-slate-100 max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center pb-4 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <Search className="w-5 h-5 text-brand-red" />
+                <h3 className="text-lg font-bold text-brand-blue">
+                  Rastreador de Facturas en Base de Datos
+                </h3>
+              </div>
+              <button onClick={() => setTrackerModalOpen(false)} className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="my-4 flex gap-2">
+              <input 
+                type="text"
+                placeholder="Ingresa el número de factura a rastrear..."
+                value={trackerNumber}
+                onChange={e => setTrackerNumber(e.target.value.toUpperCase())}
+                onKeyDown={e => { if (e.key === "Enter") handleTrackInvoice(); }}
+                className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-brand-blue font-mono font-bold text-slate-800"
+              />
+              <button 
+                onClick={() => handleTrackInvoice()} 
+                disabled={trackerLoading || !trackerNumber.trim()}
+                className="px-5 py-2.5 bg-brand-blue hover:bg-brand-darkblue text-white rounded-xl text-sm font-bold shadow-md transition disabled:opacity-50 flex items-center gap-2"
+              >
+                {trackerLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Rastrear"}
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto space-y-4 pr-1">
+              {trackerLoading ? (
+                <div className="py-12 flex flex-col items-center justify-center text-slate-500">
+                  <Loader2 className="w-8 h-8 animate-spin text-brand-blue mb-2" />
+                  <span className="text-sm font-medium">Buscando en toda la base de datos...</span>
+                </div>
+              ) : trackerResult?.invoices?.length > 0 ? (
+                <div className="space-y-4">
+                  <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl p-4 flex items-center gap-3">
+                    <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0" />
+                    <div>
+                      <p className="font-bold text-sm">Factura encontrada en el sistema</p>
+                      <p className="text-xs text-emerald-700">Se encontraron {trackerResult.invoices.length} registro(s) que coinciden con el número <strong>{trackerResult.searchedNumber}</strong>.</p>
+                    </div>
+                  </div>
+
+                  {trackerResult.invoices.map((inv: any, idx: number) => {
+                    const isMoto = inv.vehicle_type === "moto";
+                    return (
+                      <div key={idx} className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
+                        <div className="flex justify-between items-start flex-wrap gap-2">
+                          <div>
+                            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Empleado / Correo</span>
+                            <span className="text-sm font-extrabold text-slate-800">{inv.user_id}</span>
+                            <span className="text-xs text-slate-500 block">({formatName(inv.user_id)})</span>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Fecha Asignada</span>
+                            <span className="text-sm font-extrabold text-brand-blue">
+                              {new Date(inv.date + "T12:00:00").toLocaleDateString("es-ES")}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-white p-3 rounded-xl border border-slate-100 text-xs">
+                          <div>
+                            <span className="text-slate-400 block font-medium">Nro. Factura</span>
+                            <span className="font-mono font-bold text-slate-800">{inv.invoice_number}</span>
+                          </div>
+                          <div>
+                            <span className="text-slate-400 block font-medium">Monto</span>
+                            <span className="font-bold text-emerald-600">Bs. {Number(inv.amount).toLocaleString('de-DE', {minimumFractionDigits: 2})}</span>
+                          </div>
+                          <div>
+                            <span className="text-slate-400 block font-medium">Vehículo</span>
+                            <span className={`inline-flex items-center gap-1 font-bold ${isMoto ? 'text-brand-red' : 'text-brand-blue'}`}>
+                              {isMoto ? <Bike className="w-3.5 h-3.5" /> : <Car className="w-3.5 h-3.5" />}
+                              {isMoto ? "Moto" : "Carro"}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-slate-400 block font-medium">Estado</span>
+                            <span className={`font-bold ${inv.report_sequence ? 'text-emerald-600' : 'text-amber-600'}`}>
+                              {inv.report_sequence ? "Procesada" : "Pendiente"}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex justify-between items-center pt-1 flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedEmployee(inv.user_id);
+                              setShowAllEmployeeHistory(true);
+                              setTrackerModalOpen(false);
+                            }}
+                            className="text-xs font-bold text-brand-blue hover:underline flex items-center gap-1"
+                          >
+                            Ver todas las facturas de este empleado en la tabla →
+                          </button>
+                          <div className="flex items-center gap-2">
+                            {inv.image_url && (
+                              <button 
+                                onClick={() => setSelectedImage(inv.image_url)}
+                                className="px-3 py-1.5 bg-blue-50 text-brand-blue hover:bg-blue-100 rounded-lg text-xs font-bold flex items-center gap-1"
+                              >
+                                <ExternalLink className="w-3.5 h-3.5" /> Ver Evidencia
+                              </button>
+                            )}
+                            <button
+                              onClick={() => {
+                                setEditingFactura(inv);
+                                setTrackerModalOpen(false);
+                              }}
+                              className="px-3 py-1.5 bg-amber-50 text-amber-700 hover:bg-amber-100 rounded-lg text-xs font-bold flex items-center gap-1"
+                            >
+                              <Pencil className="w-3.5 h-3.5" /> Editar
+                            </button>
+                            <button
+                              onClick={async () => {
+                                if (confirm(`¿Eliminar la factura #${inv.invoice_number} de ${inv.user_id}?`)) {
+                                  await handleDelete(inv.id);
+                                  handleTrackInvoice(inv.invoice_number);
+                                }
+                              }}
+                              className="px-3 py-1.5 bg-red-50 text-brand-red hover:bg-red-100 rounded-lg text-xs font-bold flex items-center gap-1"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" /> Eliminar
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : trackerResult?.invoices?.length === 0 ? (
+                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 text-amber-900 space-y-3">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="w-6 h-6 text-amber-600 shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                      <p className="font-bold text-sm">
+                        No existe ninguna factura con el número #{trackerResult.searchedNumber} en la base de datos
+                      </p>
+                      <p className="text-xs text-amber-800 leading-relaxed">
+                        Este ticket <strong>nunca llegó a registrarse</strong> con ese número.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="bg-white/80 rounded-xl p-3.5 border border-amber-200/60 text-xs text-slate-700 space-y-2">
+                    <p className="font-bold text-slate-800">¿Por qué el usuario afirma que lo cargó?</p>
+                    <ul className="list-disc pl-4 space-y-1 text-slate-600">
+                      <li><strong>Error de fecha:</strong> Si el usuario intentó cargarlo y el formulario tenía una fecha donde ya tenía otro ticket cargado, el sistema rechazó la carga con <em>"Ya tienes una factura en esta fecha"</em> y nunca se guardó.</li>
+                      <li><strong>Tope de monto:</strong> Si el monto superaba los $20 USD de la tasa BCV, el sistema impidió el registro.</li>
+                      <li><strong>Número equivocado:</strong> Verifica si en el ticket físico el número tiene ceros a la izquierda (ej. <em>00033815</em> en vez de <em>33815</em>).</li>
+                    </ul>
+                  </div>
+                </div>
+              ) : (
+                <div className="py-8 text-center text-slate-400 text-sm">
+                  Ingresa un número de ticket y presiona "Rastrear" para auditar en toda la base de datos.
+                </div>
+              )}
+            </div>
+
+            <div className="pt-4 border-t border-slate-100 flex justify-end">
+              <button 
+                onClick={() => setTrackerModalOpen(false)}
+                className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm font-bold transition"
+              >
+                Cerrar
+              </button>
+            </div>
           </div>
         </div>
       )}

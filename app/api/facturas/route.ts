@@ -14,7 +14,7 @@ const sanitizeInput = (str: any) => {
   return str.replace(/</g, "&lt;").replace(/>/g, "&gt;");
 };
 
-// GET: Obtener facturas (invoices) filtradas por rango de fecha y rol
+// GET: Obtener facturas (invoices) con filtros avanzados por rango de fecha, búsqueda, empleado y estado
 export async function GET(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -26,7 +26,12 @@ export async function GET(req: NextRequest) {
     const start = searchParams.get("start");
     const end = searchParams.get("end");
     const search = searchParams.get("search");
+    const email = searchParams.get("email");
+    const invoiceNumber = searchParams.get("invoice_number");
+    const vehicleType = searchParams.get("vehicle_type");
+    const status = searchParams.get("status");
     const myInvoices = searchParams.get("my_invoices") === "true";
+    const all = searchParams.get("all") === "true";
 
     if (start && (!DATE_REGEX.test(start) || isNaN(Date.parse(start)))) {
       return NextResponse.json({ error: "Formato de parámetro 'start' inválido. Debe ser YYYY-MM-DD." }, { status: 400 });
@@ -36,91 +41,86 @@ export async function GET(req: NextRequest) {
     }
 
     const isRrhh = (session.user as any).role === "rrhh";
-    let sql: string;
-    let params: any[];
+    const whereClauses: string[] = [];
+    const params: any[] = [];
+    let pIdx = 1;
 
-    if (isRrhh && !myInvoices) {
-      if (search && search.length > 2) {
-        sql = `
-          SELECT 
-            i.id, 
-            u.email as user_id,
-            TO_CHAR(i.issued_at, 'YYYY-MM-DD') as date, 
-            i.invoice_number, 
-            p.description as parking_name, 
-            p.address as location, 
-            i.amount, 
-            NULL::numeric as exchange_rate,
-            i.image_url, 
-            LOWER(v.description) as vehicle_type, 
-            i.report_sequence, 
-            i.created_at,
-            i.updated_at 
-          FROM invoice i 
-          JOIN "user" u ON i.user_id = u.uuid
-          LEFT JOIN parking_lot p ON i.parking_lot_id = p.id
-          LEFT JOIN vehicle_type v ON i.vehicle_type_id = v.id
-          WHERE u.email ILIKE $1 OR i.invoice_number ILIKE $1 OR p.description ILIKE $1
-          ORDER BY i.issued_at DESC, i.id DESC
-          LIMIT 100
-        `;
-        params = [`%${search}%`];
-      } else {
-        if (!start || !end) {
-          return NextResponse.json({ error: "Faltan parámetros start y end" }, { status: 400 });
-        }
-        sql = `
-          SELECT 
-            i.id, 
-            u.email as user_id,
-            TO_CHAR(i.issued_at, 'YYYY-MM-DD') as date, 
-            i.invoice_number, 
-            p.description as parking_name, 
-            p.address as location, 
-            i.amount, 
-            NULL::numeric as exchange_rate,
-            i.image_url, 
-            LOWER(v.description) as vehicle_type, 
-            i.report_sequence, 
-            i.created_at,
-            i.updated_at 
-          FROM invoice i 
-          JOIN "user" u ON i.user_id = u.uuid
-          LEFT JOIN parking_lot p ON i.parking_lot_id = p.id
-          LEFT JOIN vehicle_type v ON i.vehicle_type_id = v.id
-          WHERE i.issued_at >= $1 AND i.issued_at <= $2 
-          ORDER BY i.issued_at DESC, i.id DESC
-        `;
-        params = [start, end];
-      }
-    } else {
-      if (!start || !end) {
-        return NextResponse.json({ error: "Faltan parámetros start y end" }, { status: 400 });
-      }
-      sql = `
-        SELECT 
-          i.id, 
-          u.email as user_id,
-          TO_CHAR(i.issued_at, 'YYYY-MM-DD') as date, 
-          i.invoice_number, 
-          p.description as parking_name, 
-          p.address as location, 
-          i.amount, 
-          NULL::numeric as exchange_rate,
-          i.image_url, 
-          LOWER(v.description) as vehicle_type, 
-          i.report_sequence, 
-          i.created_at,
-          i.updated_at 
-        FROM invoice i 
-        JOIN "user" u ON i.user_id = u.uuid
-        LEFT JOIN parking_lot p ON i.parking_lot_id = p.id
-        LEFT JOIN vehicle_type v ON i.vehicle_type_id = v.id
-        WHERE u.email = $1 AND i.issued_at >= $2 AND i.issued_at <= $3 
-        ORDER BY i.issued_at DESC, i.id DESC
-      `;
-      params = [session.user.email, start, end];
+    // Control de acceso: empleados solo ven sus propias facturas
+    if (!isRrhh || myInvoices) {
+      whereClauses.push(`u.email = $${pIdx++}`);
+      params.push(session.user.email);
+    } else if (email && email.trim().length > 0) {
+      whereClauses.push(`u.email ILIKE $${pIdx++}`);
+      params.push(`%${email.trim()}%`);
     }
+
+    // Filtros de fecha (opcionales si se pide 'all' o se busca por número exacto)
+    if (start) {
+      whereClauses.push(`i.issued_at >= $${pIdx++}`);
+      params.push(start);
+    }
+    if (end) {
+      whereClauses.push(`i.issued_at <= $${pIdx++}`);
+      params.push(end);
+    }
+
+    // Si no se pasaron fechas, ni 'all', ni búsqueda, requerir fechas si no es búsqueda directa
+    if (!start && !end && !all && !search && !invoiceNumber && !email && !myInvoices) {
+      return NextResponse.json({ error: "Faltan parámetros start y end para delimitar el periodo" }, { status: 400 });
+    }
+
+    // Filtro por número de factura exacto o parcial
+    if (invoiceNumber && invoiceNumber.trim().length > 0) {
+      whereClauses.push(`i.invoice_number ILIKE $${pIdx++}`);
+      params.push(`%${invoiceNumber.trim()}%`);
+    }
+
+    // Filtro por tipo de vehículo
+    if (vehicleType && ["carro", "moto"].includes(vehicleType.toLowerCase())) {
+      whereClauses.push(`LOWER(v.description) = $${pIdx++}`);
+      params.push(vehicleType.toLowerCase());
+    }
+
+    // Filtro por estado en nómina
+    if (status === "pending") {
+      whereClauses.push(`i.report_sequence IS NULL`);
+    } else if (status === "processed") {
+      whereClauses.push(`i.report_sequence IS NOT NULL`);
+    }
+
+    // Búsqueda de texto general
+    if (search && search.trim().length > 0) {
+      const s = `%${search.trim()}%`;
+      whereClauses.push(`(u.email ILIKE $${pIdx} OR i.invoice_number ILIKE $${pIdx} OR p.description ILIKE $${pIdx})`);
+      params.push(s);
+      pIdx++;
+    }
+
+    const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(" AND ")}` : "";
+
+    const sql = `
+      SELECT 
+        i.id, 
+        u.email as user_id,
+        TO_CHAR(i.issued_at, 'YYYY-MM-DD') as date, 
+        i.invoice_number, 
+        p.description as parking_name, 
+        p.address as location, 
+        i.amount, 
+        NULL::numeric as exchange_rate,
+        i.image_url, 
+        LOWER(v.description) as vehicle_type, 
+        i.report_sequence, 
+        i.created_at,
+        i.updated_at 
+      FROM invoice i 
+      JOIN "user" u ON i.user_id = u.uuid
+      LEFT JOIN parking_lot p ON i.parking_lot_id = p.id
+      LEFT JOIN vehicle_type v ON i.vehicle_type_id = v.id
+      ${whereSql}
+      ORDER BY i.issued_at DESC, i.id DESC
+      LIMIT 1000
+    `;
 
     const res = await query(sql, params);
     return NextResponse.json(res.rows);
@@ -132,6 +132,7 @@ export async function GET(req: NextRequest) {
 
 // POST: Registrar nueva factura (invoice)
 export async function POST(req: NextRequest) {
+  let invoice_number: any = "";
   try {
     const session = await getServerSession(authOptions);
     if (!session || !session.user) {
@@ -141,13 +142,13 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     let {
       date,
-      invoice_number,
       amount,
       image_url,
       parking_name,
       location,
       vehicle_type
     } = body;
+    invoice_number = body.invoice_number;
 
     parking_name = sanitizeInput(parking_name);
     location = sanitizeInput(location);
@@ -220,19 +221,35 @@ export async function POST(req: NextRequest) {
     }
 
     // 3. Verificar si ya existe una factura en la misma fecha para este usuario
-    const checkSql = `SELECT id FROM invoice WHERE user_id = $1 AND DATE(issued_at) = $2 LIMIT 1`;
+    const checkSql = `
+      SELECT id, invoice_number, amount, TO_CHAR(issued_at, 'DD/MM/YYYY') as formatted_date 
+      FROM invoice 
+      WHERE user_id = $1 AND DATE(issued_at) = $2 
+      LIMIT 1
+    `;
     const checkRes = await query(checkSql, [userUuid, date]);
     
     if (checkRes.rows && checkRes.rows.length > 0) {
-      return NextResponse.json({ error: "Ya tienes una factura registrada con esta fecha. Solo se permite una por día." }, { status: 400 });
+      const exist = checkRes.rows[0];
+      return NextResponse.json({ 
+        error: `Ya tienes una factura registrada para el ${exist.formatted_date} (Factura #${exist.invoice_number} por Bs. ${Number(exist.amount).toLocaleString('de-DE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}). Solo se permite una por día. Si te equivocaste, puedes editarla o eliminarla en 'Mis Cargas'.` 
+      }, { status: 400 });
     }
 
     // 4. Control de unicidad estricto: mismo usuario y mismo número de factura
-    const checkInvoiceSql = `SELECT id FROM invoice WHERE user_id = $1 AND invoice_number = $2 LIMIT 1`;
+    const checkInvoiceSql = `
+      SELECT id, TO_CHAR(issued_at, 'DD/MM/YYYY') as formatted_date, amount 
+      FROM invoice 
+      WHERE user_id = $1 AND invoice_number = $2 
+      LIMIT 1
+    `;
     const checkInvoiceRes = await query(checkInvoiceSql, [userUuid, invoice_number]);
     
     if (checkInvoiceRes.rows && checkInvoiceRes.rows.length > 0) {
-      return NextResponse.json({ error: "Ya tienes registrada una factura con este mismo número." }, { status: 400 });
+      const exist = checkInvoiceRes.rows[0];
+      return NextResponse.json({ 
+        error: `Ya tienes registrada la factura #${invoice_number} con fecha ${exist.formatted_date}. Si necesitas corregir el monto o fecha, búscala en 'Mis Cargas' y selecciónala para editar.` 
+      }, { status: 400 });
     }
 
     // 5. Guardar factura
@@ -277,7 +294,12 @@ export async function POST(req: NextRequest) {
     });
   } catch (error: any) {
     console.error("Error al registrar factura:", error);
-    return NextResponse.json({ error: "Error al registrar la factura" }, { status: 500 });
+    if (error?.code === "23505" || error?.message?.includes("uq_parking_invoice")) {
+      return NextResponse.json({
+        error: `El número de factura #${invoice_number} ya fue registrado en el sistema (por ti o por otro usuario). Verifica el número del ticket físico o consulta con RRHH.`
+      }, { status: 400 });
+    }
+    return NextResponse.json({ error: "Error al registrar la factura: " + (error?.message || "Error interno") }, { status: 500 });
   }
 }
 
@@ -514,7 +536,7 @@ export async function PUT(req: NextRequest) {
   }
 }
 
-// DELETE: Eliminar factura (Solo RRHH)
+// DELETE: Eliminar factura (RRHH o Propietario si no ha sido procesada en nómina)
 export async function DELETE(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -529,12 +551,7 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: "Identificador de factura inválido" }, { status: 400 });
     }
 
-    const isRrhh = (session.user as any).role === "rrhh";
-    if (!isRrhh) {
-      return NextResponse.json({ error: "Acceso denegado: Solo RRHH puede eliminar registros" }, { status: 403 });
-    }
-
-    // Verificar si existe y si ya fue exportada
+    // Verificar si existe y su estado
     const checkRes = await query(`
       SELECT i.*, u.email as user_email 
       FROM invoice i 
@@ -547,16 +564,28 @@ export async function DELETE(req: NextRequest) {
     }
 
     const deletedInvoice = checkRes.rows[0];
+    const isRrhh = (session.user as any).role === "rrhh";
+    const isOwner = deletedInvoice.user_email === session.user.email;
+
+    if (!isRrhh && !isOwner) {
+      return NextResponse.json({ error: "Acceso denegado: No puedes eliminar facturas de otros empleados" }, { status: 403 });
+    }
+
+    if (deletedInvoice.report_sequence) {
+      return NextResponse.json({ error: "No se puede eliminar: Esta factura ya fue procesada en nómina" }, { status: 400 });
+    }
 
     await query(`DELETE FROM invoice WHERE id = $1`, [id]);
 
-    await logAuditAction({
-      userEmail: session.user.email!,
-      action: "DELETE",
-      targetInvoiceId: id,
-      targetUserEmail: deletedInvoice.user_email,
-      oldValues: deletedInvoice
-    });
+    if (isRrhh) {
+      await logAuditAction({
+        userEmail: session.user.email!,
+        action: "DELETE",
+        targetInvoiceId: id,
+        targetUserEmail: deletedInvoice.user_email,
+        oldValues: deletedInvoice
+      });
+    }
     
     return NextResponse.json({ success: true });
   } catch (error: any) {
