@@ -88,10 +88,10 @@ export async function GET(req: NextRequest) {
       whereClauses.push(`i.report_sequence IS NOT NULL`);
     }
 
-    // Búsqueda de texto general
+    // Búsqueda de texto general (correo, número de factura, nombre de estacionamiento o lugar)
     if (search && search.trim().length > 0) {
       const s = `%${search.trim()}%`;
-      whereClauses.push(`(u.email ILIKE $${pIdx} OR i.invoice_number ILIKE $${pIdx} OR p.description ILIKE $${pIdx})`);
+      whereClauses.push(`(u.email ILIKE $${pIdx} OR i.invoice_number ILIKE $${pIdx} OR p.description ILIKE $${pIdx} OR p.address ILIKE $${pIdx})`);
       params.push(s);
       pIdx++;
     }
