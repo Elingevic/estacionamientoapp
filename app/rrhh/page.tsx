@@ -729,24 +729,24 @@ export default function RrhhDashboard() {
                 <p className="font-medium">No se encontraron facturas en este periodo.</p>
               </div>
             ) : (
-              <table className="w-full text-left text-sm whitespace-nowrap">
+              <table className="w-full text-left text-sm">
                 <thead className="bg-slate-50 sticky top-0 z-10 border-b border-slate-200 shadow-sm">
                   <tr>
                     {selectedEmployee ? (
                       <>
-                        <th className="px-6 py-5 font-bold text-slate-500 uppercase tracking-wider text-xs">Fecha</th>
-                        <th className="px-6 py-5 font-bold text-slate-500 uppercase tracking-wider text-xs">Nro. Factura</th>
-                        <th className="px-6 py-5 font-bold text-slate-500 uppercase tracking-wider text-xs text-right">Monto Bs.</th>
-                        <th className="px-6 py-5 font-bold text-slate-500 uppercase tracking-wider text-xs text-right">Monto USD</th>
-                        <th className="px-6 py-5 font-bold text-slate-500 uppercase tracking-wider text-xs text-center">Auditoría</th>
+                        <th className="px-6 py-5 font-bold text-slate-500 uppercase tracking-wider text-xs w-[32%] min-w-[220px]">Fecha y Estacionamiento</th>
+                        <th className="px-6 py-5 font-bold text-slate-500 uppercase tracking-wider text-xs w-[16%] min-w-[120px]">Nro. Factura</th>
+                        <th className="px-6 py-5 font-bold text-slate-500 uppercase tracking-wider text-xs text-right w-[16%] min-w-[120px]">Monto Bs.</th>
+                        <th className="px-6 py-5 font-bold text-slate-500 uppercase tracking-wider text-xs text-right w-[14%] min-w-[100px]">Monto USD</th>
+                        <th className="px-6 py-5 font-bold text-slate-500 uppercase tracking-wider text-xs text-center w-[22%] min-w-[180px]">Auditoría</th>
                       </>
                     ) : (
                       <>
-                        <th className="px-6 py-5 font-bold text-slate-500 uppercase tracking-wider text-xs">Empleado</th>
-                        <th className="px-6 py-5 font-bold text-slate-500 uppercase tracking-wider text-xs text-center">Tickets</th>
-                        <th className="px-6 py-5 font-bold text-slate-500 uppercase tracking-wider text-xs text-right">Monto Bs.</th>
-                        <th className="px-6 py-5 font-bold text-slate-500 uppercase tracking-wider text-xs text-right">Monto USD</th>
-                        <th className="px-6 py-5 font-bold text-slate-500 uppercase tracking-wider text-xs text-center">Acciones</th>
+                        <th className="px-6 py-5 font-bold text-slate-500 uppercase tracking-wider text-xs w-[35%] min-w-[220px]">Empleado</th>
+                        <th className="px-6 py-5 font-bold text-slate-500 uppercase tracking-wider text-xs text-center w-[15%] min-w-[100px]">Tickets</th>
+                        <th className="px-6 py-5 font-bold text-slate-500 uppercase tracking-wider text-xs text-right w-[18%] min-w-[120px]">Monto Bs.</th>
+                        <th className="px-6 py-5 font-bold text-slate-500 uppercase tracking-wider text-xs text-right w-[14%] min-w-[100px]">Monto USD</th>
+                        <th className="px-6 py-5 font-bold text-slate-500 uppercase tracking-wider text-xs text-center w-[18%] min-w-[160px]">Acciones</th>
                       </>
                     )}
                   </tr>
@@ -755,93 +755,101 @@ export default function RrhhDashboard() {
                   {selectedEmployee ? (
                     facturasPorEmpleado[selectedEmployee]?.map((f: any, i: number) => (
                       <tr key={i} className="hover:bg-slate-50/80 transition-colors group">
-                        <td className="px-6 py-4 text-slate-600 font-medium">
-                           <div className="flex flex-col items-start">
-                             <span>{new Date(f.date + "T12:00:00").toLocaleDateString("es-ES")}</span>
+                        <td className="px-6 py-4 text-slate-600 font-medium max-w-[260px]">
+                           <div className="flex flex-col items-start max-w-full">
+                             <span className="font-bold text-slate-800">{new Date(f.date + "T12:00:00").toLocaleDateString("es-ES")}</span>
                              {f.vehicle_type === "moto" ? (
                                <span className="inline-flex items-center gap-1 text-[10px] bg-red-100 text-brand-red px-2 py-0.5 rounded-full font-bold mt-1 w-max"><Bike className="w-3 h-3"/> Moto</span>
                              ) : (
                                <span className="inline-flex items-center gap-1 text-[10px] bg-blue-100 text-brand-blue px-2 py-0.5 rounded-full font-bold mt-1 w-max"><Car className="w-3 h-3"/> Carro</span>
                              )}
-                             <span className="text-xs font-semibold text-slate-700 mt-1">{f.parking_name || "Sin nombre"}</span>
-                             <span className="text-[11px] text-slate-400">{f.location || "Sin lugar"}</span>
+                             <span className="text-xs font-semibold text-slate-700 mt-1 truncate max-w-[240px] block" title={f.parking_name}>{f.parking_name || "Sin nombre"}</span>
+                             <span className="text-[11px] text-slate-400 truncate max-w-[240px] block" title={f.location}>{f.location || "Sin lugar"}</span>
                            </div>
                         </td>
-                        <td className="px-6 py-4 font-mono font-medium text-slate-500">{f.invoice_number}</td>
-                        <td className="px-6 py-4 text-right">
+                        <td className="px-6 py-4 font-mono font-medium text-slate-500 whitespace-nowrap">
+                          <span className="truncate max-w-[130px] block" title={f.invoice_number}>{f.invoice_number}</span>
+                        </td>
+                        <td className="px-6 py-4 text-right whitespace-nowrap">
                           <p className="font-bold text-emerald-600">Bs. {Number(f.amount).toLocaleString('de-DE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
                         </td>
-                        <td className="px-6 py-4 text-right">
+                        <td className="px-6 py-4 text-right whitespace-nowrap">
                           <p className="text-sm font-bold text-slate-500">${(Number(f.amount) / (f.exchange_rate || bcvRate)).toLocaleString('de-DE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
                         </td>
-                        <td className="px-6 py-4 flex flex-wrap items-center justify-center gap-2">
-                          {f.image_url ? (
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                            {f.image_url ? (
+                              <button 
+                                onClick={() => setSelectedImage(f.image_url)}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-blue/5 text-brand-blue hover:bg-brand-blue/10 transition-colors font-bold text-xs"
+                              >
+                                <ExternalLink className="w-3.5 h-3.5" /> Ver
+                              </button>
+                            ) : (
+                              <span className="text-xs text-slate-400 font-medium italic">Sin evidencia</span>
+                            )}
                             <button 
-                              onClick={() => setSelectedImage(f.image_url)}
-                              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-brand-blue/5 text-brand-blue hover:bg-brand-blue/10 transition-colors font-bold text-xs"
+                              onClick={() => setEditingFactura(f)}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 transition-colors font-bold text-xs"
                             >
-                              <ExternalLink className="w-4 h-4" /> Ver
+                              <Pencil className="w-3.5 h-3.5" /> Editar
                             </button>
-                          ) : (
-                            <span className="text-xs text-slate-400 font-medium italic">Sin evidencia</span>
-                          )}
-                              <button 
-                                onClick={() => setEditingFactura(f)}
-                                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 transition-colors font-bold text-xs"
+                            <button 
+                              onClick={() => handleDelete(f.id)}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-red/5 text-brand-red hover:bg-brand-red/10 transition-colors font-bold text-xs"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" /> Eliminar
+                            </button>
+                            {f.report_sequence && (
+                              <span 
+                                title="Factura ya exportada en nómina" 
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-slate-50 border border-slate-200 text-[10px] font-bold text-slate-400 cursor-help"
                               >
-                                <Pencil className="w-4 h-4" /> Editar
-                              </button>
-                              <button 
-                                onClick={() => handleDelete(f.id)}
-                                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-brand-red/5 text-brand-red hover:bg-brand-red/10 transition-colors font-bold text-xs"
-                              >
-                                <Trash2 className="w-4 h-4" /> Eliminar
-                              </button>
-                              {f.report_sequence && (
-                                <span 
-                                  title="Factura ya exportada en nómina" 
-                                  className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-slate-50 border border-slate-200 text-[10px] font-bold text-slate-400 cursor-help"
-                                >
-                                  <Lock className="w-3 h-3" />
-                                </span>
-                              )}
+                                <Lock className="w-3 h-3" />
+                              </span>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))
                   ) : (
                     listaEmpleados.map((emp: any, i: number) => (
                       <tr key={i} className="hover:bg-slate-50/80 transition-colors group">
-                        <td className="px-6 py-4 font-bold text-slate-800">{formatName(emp.email)}</td>
-                        <td className="px-6 py-4 text-center font-medium text-slate-600">
+                        <td className="px-6 py-4 font-bold text-slate-800">
+                          <span className="truncate max-w-sm block" title={emp.email}>{formatName(emp.email)}</span>
+                        </td>
+                        <td className="px-6 py-4 text-center font-medium text-slate-600 whitespace-nowrap">
                           <span className="bg-slate-100 px-3 py-1 rounded-full text-xs font-bold text-slate-500">{emp.totalTickets} tickets</span>
                         </td>
-                        <td className="px-6 py-4 text-right">
+                        <td className="px-6 py-4 text-right whitespace-nowrap">
                           <p className="font-bold text-brand-blue">Bs. {emp.totalMonto.toLocaleString('de-DE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
                         </td>
-                        <td className="px-6 py-4 text-right">
+                        <td className="px-6 py-4 text-right whitespace-nowrap">
                           <p className="font-bold text-emerald-600">${emp.totalMontoUsd.toLocaleString('de-DE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
                         </td>
-                        <td className="px-6 py-4 flex items-center justify-center gap-2">
-                          <button 
-                            onClick={() => setSelectedEmployee(emp.email)}
-                            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors font-bold text-xs"
-                          >
-                            Ver Detalles
-                          </button>
-                          <div className="flex items-center gap-2">
-                            <div 
-                              title="Al exportar el reporte, las facturas del empleado se marcarán como 'Procesadas' de forma permanente y ya no podrán ser editadas ni eliminadas." 
-                              onClick={() => setInfoModal("Al exportar el reporte, las facturas del empleado se marcarán como 'Procesadas' de forma permanente y ya no podrán ser editadas ni eliminadas.")}
-                              className="cursor-help group relative flex items-center justify-center"
-                            >
-                              <Info className="w-4 h-4 text-slate-400 hover:text-brand-blue transition-colors" />
-                            </div>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center justify-center gap-2">
                             <button 
-                              onClick={() => window.open(`/api/generar-reporte?start=${startDate}&end=${endDate}&email=${encodeURIComponent(emp.email)}`, "_blank")}
-                              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-brand-red text-white hover:bg-brand-darkred shadow-md transition-colors font-bold text-xs"
+                              onClick={() => setSelectedEmployee(emp.email)}
+                              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors font-bold text-xs"
                             >
-                              <FileText className="w-4 h-4" /> Exportar Word
+                              Ver Detalles
                             </button>
+                            <div className="flex items-center gap-2">
+                              <div 
+                                title="Al exportar el reporte, las facturas del empleado se marcarán como 'Procesadas' de forma permanente y ya no podrán ser editadas ni eliminadas." 
+                                onClick={() => setInfoModal("Al exportar el reporte, las facturas del empleado se marcarán como 'Procesadas' de forma permanente y ya no podrán ser editadas ni eliminadas.")}
+                                className="cursor-help group relative flex items-center justify-center"
+                              >
+                                <Info className="w-4 h-4 text-slate-400 hover:text-brand-blue transition-colors" />
+                              </div>
+                              <button 
+                                onClick={() => window.open(`/api/generar-reporte?start=${startDate}&end=${endDate}&email=${encodeURIComponent(emp.email)}`, "_blank")}
+                                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-brand-red text-white hover:bg-brand-darkred shadow-md transition-colors font-bold text-xs"
+                              >
+                                <FileText className="w-4 h-4" /> Exportar Word
+                              </button>
+                            </div>
                           </div>
                         </td>
                       </tr>

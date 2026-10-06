@@ -606,10 +606,10 @@ export default function Home() {
                             </span>
                           </div>
                           <div className="mt-1 space-y-0.5">
-                            <p className="text-xs text-slate-700 font-semibold flex items-center gap-1">
+                            <p className="text-xs text-slate-700 font-semibold flex items-center gap-1 truncate max-w-[220px]" title={f.parking_name}>
                               {f.parking_name || "Sin nombre"}
                             </p>
-                            <p className="text-[11px] text-slate-400 font-medium flex items-center gap-1">
+                            <p className="text-[11px] text-slate-400 font-medium flex items-center gap-1 truncate max-w-[220px]" title={f.location}>
                               {f.location || "Sin lugar"}
                             </p>
                           </div>
